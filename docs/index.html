@@ -3,11 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>
+// Запущено с экрана «Домой» как приложение — запрещаем зум (щипок, двойной тап, автозум полей).
+if (matchMedia("(display-mode: standalone)").matches || navigator.standalone) {
+  document.querySelector('meta[name=viewport]').setAttribute("content", "width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover");
+  document.documentElement.style.touchAction = "pan-x pan-y";
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t => document.addEventListener(t, e => e.preventDefault(), {passive: false}));
+  document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault() }, {passive: false});
+  let lastTap = 0;
+  document.addEventListener("touchend", e => { const now = Date.now(); if (now - lastTap < 300 && !e.target.closest("input,textarea,select")) e.preventDefault(); lastTap = now }, {passive: false});
+}
+</script>
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Железо">
+<meta name="apple-mobile-web-app-title" content="Kalashnikov">
 <meta name="robots" content="noindex,nofollow">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -15,7 +26,7 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
-<title>Железо и дела</title>
+<title>Kalashnikov</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Golos+Text:wght@400;500;600&display=swap">
@@ -59,7 +70,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .btn-sm{padding:6px 10px;font-size:13px;border-radius:8px}
 .btn-danger{background:var(--red-soft);color:var(--red)}
 .icon-btn{width:34px;height:34px;padding:0;border-radius:9px;flex:none}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid transparent;border-radius:10px;padding:9px 10px;min-width:0;width:100%}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--surface2);border:1px solid transparent;border-radius:10px;padding:9px 10px;min-width:0;width:100%}
 textarea{resize:vertical;min-height:60px}
 input[type=number]{font-variant-numeric:tabular-nums}
 label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
@@ -755,7 +766,7 @@ const ACT={
   addHabit:()=>{const inp=document.getElementById("add-habit"); const v=inp?.value.trim(); if(!v) return; settings().habits.push({id:"h"+uid(),name:v}); save("meta","settings"); inp.value=""},
   delHabit:d=>{const s=settings(); s.habits=s.habits.filter(h=>h.id!==d.id); save("meta","settings")},
   theme:d=>{settings().theme=d.v; applyTheme(); save("meta","settings")},
-  export:async()=>{ const fn="zhelezo-"+todayKey()+".json", data=JSON.stringify({meta:S.meta,weeks:S.weeks,workouts:S.workouts,body:S.body},null,1);
+  export:async()=>{ const fn="kalashnikov-"+todayKey()+".json", data=JSON.stringify({meta:S.meta,weeks:S.weeks,workouts:S.workouts,body:S.body},null,1);
     if(!Store.downloads){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type:"application/json"})); a.download=fn; document.body.appendChild(a); a.click(); a.remove(); return false }
     try{ await Store.downloads.save({filename:fn,data}) }catch(e){ if(e?.code!=="declined"&&e?.code!=="cancelled") toast("Не удалось сохранить файл") } return false },
   ask:async d=>{ const q=d.v||document.getElementById("coach-q")?.value.trim(); if(!q||UI.chatBusy||!Store.sample) return false; const ta=document.getElementById("coach-q"); if(ta) ta.value="";

@@ -1,4 +1,4 @@
-"""Собирает версию для GitHub Pages в папку docs/ (её раздаёт GitHub Pages) из zhelezo.html."""
+"""Собирает версию для GitHub Pages в папку docs/ (её раздаёт GitHub Pages) из kalashnikov.html."""
 import json, os, struct, zlib
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -10,11 +10,22 @@ HEAD = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>
+// Запущено с экрана «Домой» как приложение — запрещаем зум (щипок, двойной тап, автозум полей).
+if (matchMedia("(display-mode: standalone)").matches || navigator.standalone) {
+  document.querySelector('meta[name=viewport]').setAttribute("content", "width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover");
+  document.documentElement.style.touchAction = "pan-x pan-y";
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t => document.addEventListener(t, e => e.preventDefault(), {passive: false}));
+  document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault() }, {passive: false});
+  let lastTap = 0;
+  document.addEventListener("touchend", e => { const now = Date.now(); if (now - lastTap < 300 && !e.target.closest("input,textarea,select")) e.preventDefault(); lastTap = now }, {passive: false});
+}
+</script>
 <meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Железо">
+<meta name="apple-mobile-web-app-title" content="Kalashnikov">
 <meta name="robots" content="noindex,nofollow">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
@@ -29,10 +40,10 @@ TAIL = """
 </html>
 """
 
-src = open(os.path.join(ROOT, "zhelezo.html"), encoding="utf8").read()
+src = open(os.path.join(ROOT, "kalashnikov.html"), encoding="utf8").read()
 open(os.path.join(OUT, "index.html"), "w", encoding="utf8").write(HEAD + src + TAIL)
 
-open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="zhelezo-v3";
+open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="kalashnikov-v1";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon-180.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
@@ -45,7 +56,7 @@ self.addEventListener("fetch",e=>{
 """)
 
 json.dump({
-    "name": "Железо и дела", "short_name": "Железо", "lang": "ru",
+    "name": "Kalashnikov", "short_name": "Kalashnikov", "lang": "ru",
     "start_url": "./", "scope": "./", "display": "standalone",
     "background_color": "#050505", "theme_color": "#050505",
     "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
