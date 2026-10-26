@@ -3,25 +3,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Golos+Text:wght@400;500;600&display=swap">
 <style>
-/* Layout: one phone-width column, cards by role, fixed tab bar at the bottom. Colors borrowed from Olympic plates (25 red, 20 blue, 15 yellow, 10 green). */
+/* Layout: one phone-width column, cards by role, fixed tab bar at the bottom. Palette from GYMbro: one dark look — ink black, bone, lime. */
 :root{
-  --bg:#ECEFF3; --surface:#FFFFFF; --surface2:#E2E7ED; --ink:#121821; --muted:#5A6576; --line:#D2D9E1;
-  --accent:#1F4FD8; --accent-ink:#FFFFFF; --accent-soft:#DCE5FB;
-  --red:#C93428; --yellow:#C99700; --green:#1C8F55; --red-soft:#F8DEDB; --green-soft:#D7F0E3;
+  --bg:#050505; --surface:#121212; --surface2:#1C1C1B; --ink:#EEEAE1; --muted:#8D8D87; --line:rgba(238,234,225,.16);
+  --accent:#D8FD3E; --accent-ink:#050505; --accent-soft:rgba(216,253,62,.12);
+  --red:#F18B8B; --yellow:#EEEAE1; --green:#D8FD3E; --red-soft:#39191C; --green-soft:rgba(216,253,62,.14);
   --f-display:"Oswald","Arial Narrow",Impact,sans-serif;
   --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --r:14px;
+  --r:14px; color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0D1116; --surface:#161C24; --surface2:#1F2731; --ink:#E7ECF2; --muted:#8F9BAB; --line:#2A3441;
-  --accent:#6C8FFF; --accent-ink:#0B1020; --accent-soft:#1E2A4D;
-  --red:#FF6F62; --yellow:#F2C230; --green:#45C887; --red-soft:#3A1F1D; --green-soft:#16362A; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0D1116; --surface:#161C24; --surface2:#1F2731; --ink:#E7ECF2; --muted:#8F9BAB; --line:#2A3441;
-  --accent:#6C8FFF; --accent-ink:#0B1020; --accent-soft:#1E2A4D;
-  --red:#FF6F62; --yellow:#F2C230; --green:#45C887; --red-soft:#3A1F1D; --green-soft:#16362A; color-scheme:dark}
 *{box-sizing:border-box}
-html,body{background:var(--bg)}
+html{background:var(--bg)}
+body{background:radial-gradient(circle at 92% 0,rgba(216,253,62,.12),transparent 25%) fixed,var(--bg)}
 body{color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   padding-block:0 calc(84px + env(safe-area-inset-bottom,0px))}
@@ -34,7 +27,7 @@ h3{font-size:16px}
 .num{font-family:var(--f-display);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)} .small{font-size:13px}
 .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.card{background:var(--surface);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .card.flat{background:transparent;padding:0}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
 .between{justify-content:space-between}
@@ -85,7 +78,7 @@ nav.tabs button[aria-current=page]{color:var(--accent);font-weight:600}
 .kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 /* plate stripe: a program's color */
 .plate{width:8px;align-self:stretch;border-radius:4px;flex:none}
-.p-A{background:var(--red)} .p-B{background:var(--accent)} .p-C{background:var(--yellow)} .p-X{background:var(--green)}
+.p-A{background:var(--red)} .p-B{background:var(--accent)} .p-C{background:var(--yellow)} .p-X{background:var(--muted)}
 /* workout logger */
 .ex-head{display:flex;gap:10px;align-items:flex-start}
 .ex-n{font-family:var(--f-display);font-size:22px;color:var(--muted);width:24px;flex:none;line-height:1.1}
@@ -101,7 +94,7 @@ nav.tabs button[aria-current=page]{color:var(--accent);font-weight:600}
 .restbar .t{font-family:var(--f-display);font-size:26px;font-variant-numeric:tabular-nums;min-width:70px}
 .restbar button{background:rgba(127,127,127,.25);color:inherit}
 .restbar .bar{flex:1;height:6px;border-radius:3px;background:rgba(127,127,127,.3);overflow:hidden}
-.restbar .bar i{display:block;height:100%;background:var(--yellow)}
+.restbar .bar i{display:block;height:100%;background:var(--bg)}
 /* sheet */
 .sheet-bg{position:fixed;inset:0;z-index:30;background:rgba(5,8,12,.5);display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--bg);width:100%;max-width:640px;max-height:86vh;overflow:auto;border-radius:18px 18px 0 0;
@@ -218,18 +211,43 @@ const PROGRAMS=[
     {ex:"lat_pull",sets:4,reps:"10–12",rest:150},{ex:"bench",sets:4,reps:"6–8",rest:150},{ex:"rear_delt",sets:4,reps:"12",rest:150},
     {ex:"scott",sets:4,reps:"10",rest:150,alt:["barbell_curl","scott_machine"]},{ex:"rope_oh",sets:4,reps:"10–12",rest:150},...ABS]},
 ];
+/* КБЖУ на 100 г по базе FatSecret (k — ккал, p — белки, f — жиры, c — углеводы) */
+const FOOD={
+  oats:{n:"Овсяные хлопья",k:355,p:13.1,f:6.2,c:65.7},
+  milk:{n:"Молоко 2%",k:50,p:3.3,f:1.97,c:4.68},
+  egg:{n:"Яйцо куриное",k:148,p:12.58,f:9.94,c:0.76},
+  chicken:{n:"Куриная грудка",k:164,p:30.76,f:3.54,c:0},
+  turkey:{n:"Грудка индейки",k:135,p:30.06,f:0.74,c:0},
+  cream_cheese:{n:"Творожный сыр",k:352,p:7.52,f:34.9,c:2.69},
+  gouda:{n:"Сыр гауда / российский",k:356,p:24.94,f:27.44,c:2.22},
+  tomato:{n:"Помидор",k:18,p:0.88,f:0.2,c:3.92},
+  cucumber:{n:"Огурец",k:15,p:0.65,f:0.11,c:3.63},
+  veg:{n:"Помидор и огурец",k:16.5,p:0.77,f:0.16,c:3.78},
+  pickle:{n:"Солёный огурец",k:18,p:0.62,f:0.18,c:4.12},
+  lettuce:{n:"Лист салата",k:15,p:1.36,f:0.15,c:2.79},
+  jalapeno:{n:"Халапеньо",k:29,p:1.36,f:0.64,c:5.93},
+  teriyaki:{n:"Соус терияки",k:83,p:5.94,f:0,c:15.94},
+  whey:{n:"Протеин (сывороточный)",k:400,p:80,f:8,c:3.3},
+  banana:{n:"Банан",k:89,p:1.09,f:0.33,c:22.84},
+  nectarine:{n:"Нектарин",k:44,p:1.06,f:0.32,c:10.55},
+  nuts:{n:"Орехи (смесь)",k:617,p:16.51,f:56.3,c:21.58},
+  rice:{n:"Рис (сухой)",k:365,p:7.13,f:0.66,c:79.95},
+  buckwheat:{n:"Гречка (сухая)",k:343,p:13.25,f:3.4,c:71.5},
+  bulgur:{n:"Булгур (сухой)",k:342,p:12.29,f:1.33,c:75.87},
+  tvorog:{n:"Творог 5%",k:119,p:16.78,f:4.32,c:3.92},
+  greek:{n:"Греческий йогурт 2%",k:71,p:10,f:2.06,c:2.94},
+};
+/* f — продукт или список взаимозаменяемых продуктов, g — граммы, u — подпись к граммам */
 const RECIPES=[
-  {n:"Омлет с овощами и сыром",t:["Завтрак","Белок"],k:320,p:28,f:21,c:6,ing:"2 яйца, 2 белка, перец, шпинат, 20 г сыра",how:"Взбей яйца, обжарь овощи 2 минуты, залей яйцами, посыпь сыром и накрой крышкой на 4 минуты."},
-  {n:"Овсянка с творогом и ягодами",t:["Завтрак"],k:430,p:33,f:10,c:52,ing:"60 г овсянки, 150 г творога 5%, 80 г ягод",how:"Свари овсянку на воде, смешай с творогом, сверху ягоды."},
-  {n:"Курица с рисом и овощами",t:["Обед","Белок"],k:620,p:49,f:13,c:70,ing:"180 г куриной грудки, 70 г риса (сухого), 200 г овощей, 10 г масла",how:"Отвари рис. Грудку нарежь и обжарь 7–8 минут, добавь овощи ещё на 5 минут."},
-  {n:"Гречка с индейкой",t:["Обед"],k:540,p:42,f:11,c:62,ing:"70 г гречки, 170 г филе индейки, лук, морковь",how:"Обжарь лук и морковь, добавь индейку, затем гречку и воду 1:2. Туши 20 минут."},
-  {n:"Паста болоньезе",t:["Обед"],k:640,p:43,f:18,c:72,ing:"80 г пасты, 150 г фарша говяжьего 10%, 200 г томатов",how:"Обжарь фарш, добавь томаты и туши 15 минут. Смешай с отваренной пастой."},
-  {n:"Лосось с картофелем",t:["Ужин"],k:610,p:36,f:27,c:50,ing:"150 г лосося, 250 г картофеля, салатные листья",how:"Запеки картофель 30 минут при 200°, лосось добавь на последние 12 минут."},
-  {n:"Салат с тунцом и яйцом",t:["Ужин","Белок","Мало углеводов"],k:360,p:45,f:17,c:8,ing:"150 г тунца в собственном соку, 2 яйца, огурец, томат, 1 ч. л. масла",how:"Отвари яйца, нарежь овощи, смешай с тунцом и маслом."},
-  {n:"Творожная запеканка",t:["Перекус","Белок"],k:360,p:40,f:13,c:20,ing:"200 г творога 5%, 1 яйцо, 20 г манки",how:"Смешай, выложи в форму, запекай 30 минут при 180°."},
-  {n:"Протеиновый смузи",t:["Перекус","После тренировки"],k:380,p:35,f:5,c:47,ing:"30 г протеина, 1 банан, 250 мл молока 1,5%",how:"Взбей в блендере 30 секунд."},
-  {n:"Греческий йогурт с орехами",t:["Перекус"],k:280,p:22,f:13,c:19,ing:"200 г йогурта 2%, 15 г грецких орехов, 1 ч. л. мёда",how:"Смешай и съешь."},
+  {n:"Овсяноблин",t:"Завтрак",items:[{f:"oats",g:55},{f:"milk",g:80,u:"80 мл"},{f:"egg",g:100,u:"2 шт."},{f:["chicken","turkey"],g:45},{f:"cream_cheese",g:7},{f:"gouda",g:15},{f:"tomato",g:50},{f:"cucumber",g:40},{f:"pickle",g:20},{f:"lettuce",g:20},{f:"jalapeno",g:10},{f:"teriyaki",g:15}]},
+  {n:"Овсянка с ягодами",t:"Завтрак",items:[{f:"oats",g:85,u:"85 г сухих"},{f:"whey",g:15},{f:"banana",g:120},{f:"nectarine",g:70},{f:"nuts",g:20}]},
+  {n:"Курица или индейка с крупой",t:"Обед",items:[{f:["chicken","turkey"],g:250,u:"250 г готовой, без масла"},{f:["rice","buckwheat","bulgur"],g:80,u:"80 г сухой"},{f:"veg",g:250}]},
+  {n:"Творог с греческим йогуртом и ягодами",t:"Ужин",items:[{f:"tvorog",g:200},{f:"greek",g:80},{f:["banana","nectarine"],g:120},{f:"whey",g:15},{f:"nuts",g:25}]},
 ];
+function recipeCalc(ri){ const r=RECIPES[ri]; const sel=UI.rsel[ri]||{}; const lines=r.items.map((it,ii)=>{const id=Array.isArray(it.f)?it.f[sel[ii]||0]:it.f; const fd=FOOD[id]; const m=it.g/100;
+  return {ii,id,fd,g:it.g,u:it.u,alts:Array.isArray(it.f)?it.f:null,k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m}});
+  const t=lines.reduce((a,l)=>({k:a.k+l.k,p:a.p+l.p,f:a.f+l.f,c:a.c+l.c}),{k:0,p:0,f:0,c:0});
+  return {r,lines,t,label:r.n+(lines.some(l=>l.alts)?" ("+lines.filter(l=>l.alts).map(l=>FOOD[l.id].n.split(" (")[0].toLowerCase()).join(", ")+")":"")} }
 const ARTICLES=[
   {n:"Как устроены программы FullBody",b:["Каждая тренировка прорабатывает всё тело: ноги, спину, грудь, плечи, руки и пресс.","Порядок: 10 минут эллипса, силовой блок, пресс, 15 минут кардио, заминка.","Чередуй A → B → C. Приложение само подскажет, какая тренировка следующая.","Между тренировками нужен минимум день отдыха: 3 тренировки в неделю — рабочий ритм."]},
   {n:"Как прибавлять вес",b:["Работай в диапазоне повторов программы, например 6–8.","Когда во всех 4 подходах набрал верхнюю границу (8), в следующий раз добавь 2,5–5 кг.","Если после прибавки получается меньше нижней границы (6), оставь вес, пока снова не выйдешь на 8.","Колонка «Прошлый раз» в тренировке показывает, что ты делал в прошлый раз — старайся побить хотя бы один подход."]},
@@ -294,7 +312,7 @@ function saveDay(k){ save("weeks",weekKey(k)) }
 
 /* ---------- состояние интерфейса ---------- */
 const TABS=[["today","Сегодня",'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>'],["week","Планер",'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'],["train","Тренировка",'<path d="M2 12h20M5 8v8M8 6v12M16 6v12M19 8v8"/>'],["progress","Прогресс",'<path d="M4 19l5-6 4 3 7-9"/><path d="M15 7h5v5"/>'],["more","Ещё",'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>']];
-const UI={tab:"today",day:todayKey(),weekOff:0,openWorkout:null,sheet:null,period:"month",progEx:null,bodyMetric:"weight",more:null,recipeTag:"",chat:[],chatBusy:false,editHabits:false,addToDay:null};
+const UI={tab:"today",day:todayKey(),weekOff:0,openWorkout:null,sheet:null,period:"month",progEx:null,bodyMetric:"weight",more:null,recipeTag:"",rsel:{},chat:[],chatBusy:false,editHabits:false,addToDay:null};
 let rest={end:0,total:0,timer:null};
 let audioCtx=null;
 
@@ -530,7 +548,7 @@ function vMore(){
   return `<header><div class="eyebrow">Ещё</div><h1>Инструменты</h1></header><div class="menu">
    ${it("coach","Тренер — спроси ИИ","Техника, питание, что поменять в программе. Видит твои тренировки и дни.")}
    ${it("food","Питание и КБЖУ","Расчёт дневной нормы калорий, белков, жиров и углеводов")}
-   ${it("recipes","Рецепты","10 простых блюд с КБЖУ, фильтры по приёму пищи")}
+   ${it("recipes","Рецепты","Твои блюда на завтрак, обед и ужин с КБЖУ")}
    ${it("library","Упражнения","Все упражнения из FullBody с подсказками по технике")}
    ${it("kb","База знаний","Коротко о прогрессии, отдыхе, кардио, сне и КБЖУ")}
    ${it("settings","Настройки","Привычки, тема, резервная копия")}</div>`;
@@ -551,11 +569,17 @@ function vFood(){
    <button class="btn-primary" data-a="setTarget">${t&&t.kcal===r.kcal&&t.p===r.p?"Сохранено как цель":"Сохранить как дневную цель"}</button></section>`:'<div class="empty">Заполни возраст, рост и вес — посчитаю норму по формуле Миффлина–Сан Жеора</div>'}`;
 }
 function vRecipes(){
-  const tags=[...new Set(RECIPES.flatMap(r=>r.t))]; const list=RECIPES.filter(r=>!UI.recipeTag||r.t.includes(UI.recipeTag)); const k=UI.day;
+  const tags=[...new Set(RECIPES.map(r=>r.t))]; const k=UI.day;
   return `<header><div class="eyebrow">Питание</div><h1>Рецепты</h1></header>
   <div class="row"><button class="chip" aria-pressed="${!UI.recipeTag}" data-a="rtag" data-v="">Все</button>${tags.map(t=>`<button class="chip" aria-pressed="${UI.recipeTag===t}" data-a="rtag" data-v="${t}">${t}</button>`).join("")}</div>
-  ${list.map(r=>`<section class="card"><div class="row between"><h3>${r.n}</h3><span class="num">${r.k} ккал</span></div><div class="row small"><span class="chip">Б ${r.p}</span><span class="chip">Ж ${r.f}</span><span class="chip">У ${r.c}</span>${r.t.map(t=>`<span class="small muted">${t}</span>`).join(" · ")}</div>
-   <div class="small"><b>Состав:</b> ${r.ing}</div><div class="small muted">${r.how}</div><button class="btn-sm" style="align-self:flex-start" data-a="recipeAdd" data-v="${esc(r.n)}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button></section>`).join("")}`;
+  ${RECIPES.map((r,ri)=>[r,ri]).filter(([r])=>!UI.recipeTag||r.t===UI.recipeTag).map(([r,ri])=>{const R=recipeCalc(ri),t=R.t; return `<section class="card">
+   <div class="eyebrow" style="color:var(--accent)">${r.t}</div>
+   <div class="row between"><h3>${r.n}</h3><span class="num" style="font-size:20px">${Math.round(t.k)} ккал</span></div>
+   <div class="row small"><span class="chip">Б ${Math.round(t.p)} г</span><span class="chip">Ж ${Math.round(t.f)} г</span><span class="chip">У ${Math.round(t.c)} г</span></div>
+   ${R.lines.filter(l=>l.alts).map(l=>`<div class="row">${l.alts.map((id,ai)=>`<button class="chip" aria-pressed="${l.id===id}" data-a="rsel" data-r="${ri}" data-i="${l.ii}" data-v="${ai}">${esc(FOOD[id].n)}</button>`).join("")}</div>`).join("")}
+   <div>${R.lines.map(l=>`<div class="check small"><span class="txt">${esc(l.fd.n)}</span><span class="muted num">${esc(l.u||l.g+" г")}</span><span class="num" style="min-width:64px;text-align:right">${Math.round(l.k)} ккал</span></div>`).join("")}</div>
+   <button class="btn-sm" style="align-self:flex-start" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button></section>`}).join("")}
+  <p class="small muted" style="margin:0">КБЖУ посчитано по базе FatSecret на 100 г продукта и граммовке рецепта.</p>`;
 }
 function vKB(){ return `<header><div class="eyebrow">База знаний</div><h1>Коротко о главном</h1></header>${ARTICLES.map(a=>`<details class="art"><summary>${a.n}</summary><ul>${a.b.map(x=>`<li>${x}</li>`).join("")}</ul></details>`).join("")}` }
 function vLibrary(){ return `<header><div class="eyebrow">Справочник</div><h1>Упражнения</h1></header>${GROUPS.map(g=>`<section class="card"><h2>${g}</h2>${Object.entries(EX).filter(([,e])=>e.g===g).map(([id,e])=>`<button class="pick" data-a="sheet" data-v="info" data-ex="${id}"><span>${e.n}</span><span class="muted">›</span></button>`).join("")}</section>`).join("")}` }
@@ -572,7 +596,6 @@ function vSettings(){
   <section class="card"><h2>Ежедневные привычки</h2><p class="small muted" style="margin:0">Появляются в каждом дне и считаются в проценте выполнения.</p>
    <div>${s.habits.map(h=>`<div class="check"><span class="txt">${esc(h.name)}</span><button class="x" data-a="delHabit" data-id="${h.id}" aria-label="Удалить привычку">×</button></div>`).join("")}</div>
    <div class="add"><input id="add-habit" placeholder="Новая привычка" data-enter="addHabit" autocomplete="off"><button data-a="addHabit">Добавить</button></div></section>
-  <section class="card"><h2>Тема</h2><div class="seg">${[["","Как в системе"],["light","Светлая"],["dark","Тёмная"]].map(([v,l])=>`<button aria-pressed="${th===v}" data-a="theme" data-v="${v}">${l}</button>`).join("")}</div></section>
   <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
    ${Store.downloads||Store.mode==="local"?`<button data-a="export">Скачать резервную копию (JSON)</button>`:""}
    <label class="btn" for="import-in">Восстановить из копии</label><input id="import-in" type="file" accept="application/json,.json" hidden data-c="import"></section>`;
@@ -645,7 +668,8 @@ const ACT={
   addFood:d=>{const g=id=>document.getElementById(id)?.value.trim(); const n=g("fd-n"); if(!n&&!g("fd-k")){toast("Напиши, что съел, и калории");return}
     const x=day(d.day); x.food=x.food||[]; x.food.push({id:uid(),n:n||"Приём пищи",k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))}); saveDay(d.day)},
   delFood:d=>{const x=day(d.day); x.food=(x.food||[]).filter(f=>f.id!==d.id); saveDay(d.day)},
-  recipeAdd:d=>{const r=RECIPES.find(r=>r.n===d.v); const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:r.n,k:r.k,p:r.p,f:r.f,c:r.c}); saveDay(UI.day); toast("Добавлено: "+r.n)},
+  recipeAdd:d=>{const R=recipeCalc(+d.v),t=R.t; const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:R.label,k:Math.round(t.k),p:Math.round(t.p),f:Math.round(t.f),c:Math.round(t.c)}); saveDay(UI.day); toast("Добавлено: "+R.r.n)},
+  rsel:d=>{const m=UI.rsel[d.r]||(UI.rsel[d.r]={}); m[d.i]=+d.v},
   rtag:d=>{UI.recipeTag=d.v},
   setTarget:()=>{const r=mifflin(settings().profile); if(r){settings().target={kcal:r.kcal,p:r.p,f:r.f,c:r.c}; save("meta","settings"); toast("Норма сохранена")}},
   startP:d=>{ if(activeWorkout()){ UI.openWorkout=activeWorkout(); UI.tab="train"; toast("Сначала заверши текущую тренировку"); return }
@@ -728,7 +752,7 @@ document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); 
 document.addEventListener("input",ev=>{ const t=ev.target.closest("[data-i]"); if(!t) return; INP[t.dataset.i]?.(t.dataset,t) });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&UI.sheet){UI.sheet=null;render();return} if(ev.key!=="Enter") return; const t=ev.target.closest("[data-enter]"); if(!t) return; ev.preventDefault(); ACT[t.dataset.enter](t.dataset,t,ev); render() });
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&activeWorkout()) keepAwake() });
-function applyTheme(){ const th=S.meta.settings?.theme; if(th) document.documentElement.setAttribute("data-theme",th); else document.documentElement.removeAttribute("data-theme") }
+function applyTheme(){ /* одна тёмная тема в цветах GYMbro */ }
 window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(TABS.some(t=>t[0]===h)){UI.tab=h; render()} });
 
 /* ---------- запуск ---------- */

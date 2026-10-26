@@ -10,10 +10,10 @@ HEAD = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1F4FD8">
+<meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Железо">
 <meta name="robots" content="noindex,nofollow">
 <link rel="manifest" href="manifest.webmanifest">
@@ -32,7 +32,7 @@ TAIL = """
 src = open(os.path.join(ROOT, "zhelezo.html"), encoding="utf8").read()
 open(os.path.join(OUT, "index.html"), "w", encoding="utf8").write(HEAD + src + TAIL)
 
-open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="zhelezo-v1";
+open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="zhelezo-v2";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon-180.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
@@ -47,15 +47,15 @@ self.addEventListener("fetch",e=>{
 json.dump({
     "name": "Железо и дела", "short_name": "Железо", "lang": "ru",
     "start_url": "./", "scope": "./", "display": "standalone",
-    "background_color": "#ECEFF3", "theme_color": "#1F4FD8",
+    "background_color": "#050505", "theme_color": "#050505",
     "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
               {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
 }, open(os.path.join(OUT, "manifest.webmanifest"), "w", encoding="utf8"), ensure_ascii=False, indent=1)
 
 
 def icon(size):
-    """Синий фон и белая штанга: гриф и по два блина с каждой стороны."""
-    bg, fg = (0x1F, 0x4F, 0xD8), (0xFF, 0xFF, 0xFF)
+    """Чёрный фон и лаймовая штанга: гриф и по два блина с каждой стороны."""
+    bg, fg = (0x05, 0x05, 0x05), (0xD8, 0xFD, 0x3E)
     u = size / 32
     rects = [(4, 15, 28, 17),            # гриф
              (6, 9, 8, 23), (9, 11, 11, 21),   # блины слева
