@@ -1,4 +1,4 @@
-# Kalashnikov
+﻿# Kalashnikov
 
 Личное приложение: привычки и задачи по дням, цели на неделю, тренировки FullBody A/B/C с рабочими весами и таймером отдыха, прогресс, замеры тела и КБЖУ.
 
@@ -13,5 +13,5 @@
 ## Как обновить
 
 1. Правки вносятся в `kalashnikov.html`.
-2. `python build.py` собирает папку `docs/`.
+2. `python build.py` собирает папку `docs/` (нужен Pillow: `pip install pillow`; иконка берётся из `assets/icon-source.png`).
 3. Сделай коммит и отправь: GitHub Pages раздаёт `docs/` из ветки `main`.

@@ -1,5 +1,7 @@
 """Собирает версию для GitHub Pages в папку docs/ (её раздаёт GitHub Pages) из kalashnikov.html."""
-import json, os, struct, zlib
+import json, os
+
+from PIL import Image  # pip install pillow
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "docs")
@@ -28,8 +30,8 @@ if (matchMedia("(display-mode: standalone)").matches || navigator.standalone) {
 <meta name="apple-mobile-web-app-title" content="Kalashnikov">
 <meta name="robots" content="noindex,nofollow">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-32.png?v=2" type="image/png">
+<link rel="apple-touch-icon" href="icon-180.png?v=2">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -43,8 +45,8 @@ TAIL = """
 src = open(os.path.join(ROOT, "kalashnikov.html"), encoding="utf8").read()
 open(os.path.join(OUT, "index.html"), "w", encoding="utf8").write(HEAD + src + TAIL)
 
-open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="kalashnikov-v3";
-const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon-180.png"];
+open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="kalashnikov-v4";
+const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png?v=2","./icon-512.png?v=2","./icon-180.png?v=2","./icon-32.png?v=2"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
 // Сначала сеть (чтобы обновления приходили сразу), без сети — из кэша.
@@ -59,31 +61,14 @@ json.dump({
     "name": "Kalashnikov", "short_name": "Kalashnikov", "lang": "ru",
     "start_url": "./", "scope": "./", "display": "standalone",
     "background_color": "#050505", "theme_color": "#050505",
-    "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
-              {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
+    "icons": [{"src": "icon-192.png?v=2", "sizes": "192x192", "type": "image/png"},
+              {"src": "icon-512.png?v=2", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
 }, open(os.path.join(OUT, "manifest.webmanifest"), "w", encoding="utf8"), ensure_ascii=False, indent=1)
 
 
-def icon(size):
-    """Чёрный фон и лаймовая штанга: гриф и по два блина с каждой стороны."""
-    bg, fg = (0x05, 0x05, 0x05), (0xD8, 0xFD, 0x3E)
-    u = size / 32
-    rects = [(4, 15, 28, 17),            # гриф
-             (6, 9, 8, 23), (9, 11, 11, 21),   # блины слева
-             (24, 9, 26, 23), (21, 11, 23, 21)]  # блины справа
-    rows = []
-    for y in range(size):
-        row = bytearray([0])
-        for x in range(size):
-            on = any(a * u <= x < c * u and b * u <= y < d * u for a, b, c, d in rects)
-            row += bytes(fg if on else bg)
-        rows.append(bytes(row))
-    raw = zlib.compress(b"".join(rows), 9)
-    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
-    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)) + chunk(b"IDAT", raw) + chunk(b"IEND", b"")
-
-
-for s in (180, 192, 512):
-    open(os.path.join(OUT, f"icon-{s}.png"), "wb").write(icon(s))
+# Иконка: assets/icon-source.png (квадрат во весь размер, iOS сам скругляет углы).
+master = Image.open(os.path.join(ROOT, "assets", "icon-source.png")).convert("RGB")
+for s in (32, 180, 192, 512):
+    master.resize((s, s), Image.LANCZOS).save(os.path.join(OUT, f"icon-{s}.png"), optimize=True)
 open(os.path.join(OUT, ".nojekyll"), "w").close()
 print("docs/ собран")
