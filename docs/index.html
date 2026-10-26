@@ -202,7 +202,8 @@ const EX = {
   rope_oh:{n:"Разгибания рук с верёвкой из-за головы",g:"Трицепс",tip:"Локти смотрят вперёд и не расходятся. Меняй высоту блока от тренировки к тренировке."},
   pushdown:{n:"Разгибания с блоком стоя",g:"Трицепс",tip:"Локти прижаты к корпусу, разгибай до конца и задержись на секунду."},
   tri_behind:{n:"Разгибания с блоком из-за спины",g:"Трицепс",tip:"Корпус неподвижен, работают только предплечья."},
-  pullup_assist:{n:"Подтягивания широким хватом (гравитрон)",g:"Спина",assist:true,tip:"Хват шире плеч, тянись грудью к перекладине, лопатки вниз. Это противовес: чем он меньше, тем ты сильнее."},
+  pullup:{n:"Подтягивания широким хватом",g:"Спина",bw:true,def:{sets:4,reps:"6–10",rest:120},tip:"Хват шире плеч, старт из виса на прямых руках, тянись грудью к перекладине, лопатки вниз, без раскачки. Записывай повторы в каждом подходе, поле веса оставь пустым. Когда во всех подходах сделаешь верх диапазона, повесь 2,5 кг на пояс и пиши их в «доп. кг»."},
+  pullup_assist:{n:"Подтягивания в гравитроне (архив)",g:"Спина",assist:true,archived:true,tip:"Больше не используется: ты перешёл на подтягивания со своим весом. История противовеса сохранена."},
   back_row:{n:"Back Press (Row) — тяга в тренажёре",g:"Спина",tip:"Грудь прижата к упору, тяни локтями назад, своди лопатки, без рывка корпусом."},
   chest_press:{n:"Chest Press",g:"Грудь",tip:"Рукояти на уровне середины груди, лопатки прижаты к спинке, выжимай без замка в локтях."},
   chest_machine:{n:"Жим от груди в тренажёре",g:"Грудь",tip:"Лопатки сведены, локти чуть ниже плеч, возврат медленный."},
@@ -226,7 +227,7 @@ const CARDIO=[
 const PROGRAMS=[
   {id:"A",n:"FullBody A",src:"FullBody",scheme:"4 × 6–8, отдых 2 мин",items:[
     {ex:"leg_curl",sets:4,reps:"6–8",rest:120},{ex:"leg_ext",sets:4,reps:"6–8",rest:120},{ex:"leg_press",sets:4,reps:"6–8",rest:120},
-    {ex:"row_seated",sets:4,reps:"6–8",rest:120,alt:["lat_pull","pullover_machine"]},
+    {ex:"row_seated",sets:4,reps:"6–8",rest:120,alt:["lat_pull","pullup","pullover_machine"]},
     {ex:"db_incline",sets:4,reps:"6–8",rest:120,alt:["hammer_press","dips_machine"]},
     {ex:"shoulder_machine",sets:4,reps:"6–8",rest:120,alt:["cable_lateral"]},
     {ex:"scott",sets:4,reps:"6–8",rest:120,alt:["scott_machine"]},{ex:"rope_oh",sets:4,reps:"6–8",rest:120,note:"разная высота блока"},...ABS]},
@@ -236,7 +237,7 @@ const PROGRAMS=[
     {ex:"hammer",sets:4,reps:"8–10",rest:150},{ex:"pushdown",sets:4,reps:"12–15",rest:150},...ABS]},
   {id:"C",n:"FullBody C",src:"FullBody2 · Вариант 2",scheme:"4 подхода, 6–15 повторов, отдых 2–3 мин",items:[
     {ex:"leg_curl",sets:4,reps:"15",rest:150},{ex:"leg_ext",sets:4,reps:"15",rest:150},{ex:"leg_press",sets:4,reps:"12–15",rest:150},
-    {ex:"lat_pull",sets:4,reps:"10–12",rest:150},{ex:"bench",sets:4,reps:"6–8",rest:150},{ex:"rear_delt",sets:4,reps:"12",rest:150},
+    {ex:"lat_pull",sets:4,reps:"10–12",rest:150,alt:["pullup"]},{ex:"bench",sets:4,reps:"6–8",rest:150},{ex:"rear_delt",sets:4,reps:"12",rest:150},
     {ex:"scott",sets:4,reps:"10",rest:150,alt:["barbell_curl","scott_machine"]},{ex:"rope_oh",sets:4,reps:"10–12",rest:150},...ABS]},
 ];
 /* КБЖУ на 100 г по базе FatSecret (k — ккал, p — белки, f — жиры, c — углеводы) */
@@ -283,6 +284,7 @@ function recipeCalc(ri){ const r=RECIPES[ri]; if(r.fixed) return {r,lines:[],t:r
 const ARTICLES=[
   {n:"Как устроены программы FullBody",b:["Каждая тренировка прорабатывает всё тело: ноги, спину, грудь, плечи, руки и пресс.","Порядок: 10 минут эллипса, силовой блок, пресс, 15 минут кардио, заминка.","Чередуй A → B → C. Приложение само подскажет, какая тренировка следующая.","Между тренировками нужен минимум день отдыха: 3 тренировки в неделю — рабочий ритм."]},
   {n:"Как прибавлять вес",b:["Работай в диапазоне повторов программы, например 6–8.","Когда во всех 4 подходах набрал верхнюю границу (8), в следующий раз добавь 2,5–5 кг.","Если после прибавки получается меньше нижней границы (6), оставь вес, пока снова не выйдешь на 8.","Колонка «Прошлый раз» в тренировке показывает, что ты делал в прошлый раз — старайся побить хотя бы один подход."]},
+  {n:"Как записывать подтягивания со своим весом",b:["В поле веса ничего не пиши: это подтягивания с собственным весом. Записывай только повторы в каждом подходе.","Прогресс считается по лучшему подходу в повторах: он виден в «Прогрессе» и в «Рабочих весах».","Схема: 4 подхода в диапазоне, например 6–10. Когда во всех четырёх сделал 10 — повесь 2,5 кг на пояс и пиши их в «доп. кг». С этого момента прогресс считается по весу отягощения.","Если чисто подтянуться больше не можешь, а подход не закончен, добери 1–2 медленных негатива (опускание 3–5 секунд) и напиши об этом в заметке к тренировке.","Раз в неделю взвешивайся: при рекомпозиции вес тела немного падает, и те же повторы становятся чуть легче. Это нормально."]},
   {n:"Отдых между подходами",b:["В FullBody A — 2 минуты, в B и C — 2–3 минуты. Для перекрёстных скручиваний — 15 секунд.","Таймер отдыха запускается сам, когда отмечаешь подход. Кнопка +30 добавляет время."]},
   {n:"Кардио и пульс",b:["После силовой — 15 минут кардио на выбор: велоэргометр, дорожка в гору или гребля.","Пульс не выше 150 уд/мин: это зона, где тренируется выносливость и не мешает восстановлению."]},
   {n:"Разминка и заминка",b:["10 минут эллипса разогревают суставы и поднимают пульс.","Перед первым упражнением на каждую группу сделай 1–2 лёгких подхода с половиной рабочего веса.","В конце 5–10 минут растяжки: бёдра, ягодицы, грудь, широчайшие."]},
@@ -337,6 +339,12 @@ const photoSrc=id=>id.startsWith("data:")?id:"/_blob/"+id;
 const canPhoto=()=>!!Store.assets||Store.mode==="local";
 async function shrink(file){ const img=await createImageBitmap(file); const s=Math.min(1,720/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext("2d").drawImage(img,0,0,c.width,c.height); return c.toDataURL("image/jpeg",.72) }
 function working(){ if(!S.meta.working) S.meta.working={items:{}}; return S.meta.working }
+function topOf(exId,sets){ const ex=EX[exId]||{}; const ws=sets.map(s=>num(s.w)).filter(v=>v>0);
+  if(ws.length) return {v:ex.assist?Math.min(...ws):Math.max(...ws),u:"кг",vals:ws};
+  if(ex.bw){ const rs=sets.map(s=>num(s.r)).filter(v=>v>0); if(rs.length) return {v:Math.max(...rs),u:"повт.",vals:rs} }
+  return null }
+const unitTxt=u=>u==="повт."?" повт.":" кг";
+function workUnit(exId){ return S.meta.working?.items?.[exId]?.u||"кг" }
 function workCur(exId){ const h=S.meta.working?.items?.[exId]?.h; return h&&h.length?h[h.length-1]:null }
 function week(key){ return S.weeks[key] || (S.weeks[key]={goals:[],days:{}}) }
 function day(k){ const w=week(weekKey(k)); return w.days[k] || (w.days[k]={tasks:[],habits:{},food:[],sleep:"",energy:0,mood:0,lesson:""}) }
@@ -386,9 +394,10 @@ function wSets(w){ return w.ex.reduce((a,e)=>a+doneSets(e).length,0) }
 function prevFor(exId,curId){ const cur=S.workouts[curId]; const list=finished().filter(w=>w.id!==curId && (!cur||w.date<=cur.date)).reverse();
   for(const w of list){ const e=w.ex.find(e=>e.exId===exId && doneSets(e).length); if(e) return {date:w.date,sets:doneSets(e)} } return null }
 function nextProgram(){ const f=finished().filter(w=>w.programId&&"ABC".includes(w.programId)); if(!f.length) return "A"; const l=f[f.length-1].programId; return {A:"B",B:"C",C:"A"}[l] }
-function exStats(from){ const m={}; for(const w of finished()){ if(from&&w.date<from) continue; for(const e of w.ex){ const ds=doneSets(e); if(!ds.length) continue; const ws=ds.map(s=>num(s.w)).filter(v=>v>0);
-  const o=m[e.exId]||(m[e.exId]={id:e.exId,n:0,sets:0,wsum:0,wcnt:0,max:-Infinity,min:Infinity,hist:[]}); o.n++; o.sets+=ds.length;
-  if(ws.length){ const top=Math.max(...ws); o.wsum+=ws.reduce((a,b)=>a+b,0); o.wcnt+=ws.length; o.max=Math.max(o.max,top); o.min=Math.min(o.min,...ws); o.hist.push({l:fmtDs(w.date),v:top}) } } }
+function exStats(from){ const m={}; for(const w of finished()){ if(from&&w.date<from) continue; for(const e of w.ex){ const ds=doneSets(e); if(!ds.length) continue; const t=topOf(e.exId,ds);
+  const o=m[e.exId]||(m[e.exId]={id:e.exId,n:0,sets:0,hist:[],u:"кг"}); o.n++; o.sets+=ds.length; if(t){ o.u=t.u; o.hist.push({l:fmtDs(w.date),v:t.v,u:t.u,vals:t.vals}) } } }
+  // метрика берётся по последней тренировке: если начал вешать отягощение, считаются только тренировки с ним
+  for(const o of Object.values(m)){ const h=o.hist.filter(x=>x.u===o.u); const vals=h.flatMap(x=>x.vals); o.hist=h; o.wsum=vals.reduce((a,b)=>a+b,0); o.wcnt=vals.length; o.max=vals.length?Math.max(...vals):-Infinity; o.min=vals.length?Math.min(...vals):Infinity }
   return Object.values(m).sort((a,b)=>b.n-a.n) }
 function periodStart(p,off=0){ const t=new Date(); if(p==="week") return ymd(addDays(monday(t),-7*off)); if(p==="month") return ymd(new Date(t.getFullYear(),t.getMonth()-off,1)); return null }
 function periodEnd(p,off=0){ if(p==="all") return null; return off===0?null:periodStart(p,off-1) }
@@ -402,7 +411,7 @@ function recompCheck(){
   const from=ymd(addDays(new Date(),-28)); const ents=Object.entries(S.body).filter(([k])=>k>=from).sort((a,b)=>a[0]<b[0]?-1:1);
   const span=m=>{const l=ents.filter(([,e])=>num(e[m])); if(l.length<2) return null; const d=(parseYmd(l[l.length-1][0])-parseYmd(l[0][0]))/864e5; return d>=7?{d:num(l[l.length-1][1][m])-num(l[0][1][m]),start:num(l[0][1][m]),days:d}:null};
   const wt=span("weight"), waist=span("waist");
-  const before={},after={}; for(const w of finished()){ for(const e of w.ex){ const ws=doneSets(e).map(x=>num(x.w)).filter(v=>v>0); if(!ws.length) continue; const top=EX[e.exId]?.assist?-Math.min(...ws):Math.max(...ws); const m=w.date>=from?after:before; m[e.exId]=Math.max(m[e.exId]??-Infinity,top) } }
+  const before={},after={}; for(const w of finished()){ for(const e of w.ex){ const t=topOf(e.exId,doneSets(e)); if(!t) continue; const top=EX[e.exId]?.assist?-t.v:t.v, k=e.exId+t.u; const m=w.date>=from?after:before; m[k]=Math.max(m[k]??-Infinity,top) } }
   const both=Object.keys(after).filter(id=>id in before); const up=both.filter(id=>after[id]>before[id]).length;
   let verdict=null; if(wt){ const pct=wt.d/wt.start*100/(wt.days/7); verdict= pct>0.25?{c:"down",t:"Вес растёт быстрее 0,25% в неделю — убери 100–150 ккал из углеводов"}:pct<-0.7?{c:"down",t:"Вес падает быстрее 0,7% в неделю — добавь 100–150 ккал, иначе мышцы расти не будут"}:{c:"up",t:"Темп в норме: вес почти стоит или медленно снижается"} }
   return {wt,waist,up,both:both.length,verdict} }
@@ -511,16 +520,16 @@ function vLogger(id){
     `<button class="btn-primary" data-a="finishW" data-id="${id}">Завершить тренировку</button><button class="btn-ghost" data-a="sheet" data-v="delW">Отменить и удалить</button>`}</div>`;
 }
 function vExercise(id,w,e,i){
-  const prev=prevFor(e.exId,id); const ds=doneSets(e); const curTop=Math.max(0,...ds.map(s=>num(s.w))); const prevTop=prev?Math.max(0,...prev.sets.map(s=>num(s.w))):0;
-  const diff=prev&&curTop?curTop-prevTop:null; const bw=EX[e.exId]?.bw; const wc=workCur(e.exId); const better=diff!=null&&(EX[e.exId]?.assist?diff<0:diff>0);
+  const prev=prevFor(e.exId,id); const cur=topOf(e.exId,doneSets(e)), pt=prev?topOf(e.exId,prev.sets):null;
+  const diff=cur&&pt&&cur.u===pt.u?cur.v-pt.v:null, du=cur?.u; const bw=EX[e.exId]?.bw; const wc=workCur(e.exId), wu=workUnit(e.exId); const better=diff!=null&&(EX[e.exId]?.assist?diff<0:diff>0);
   return `<section class="card"><div class="ex-head"><span class="ex-n">${i+1}</span><div class="grow stack" style="gap:3px">
     <button class="btn-ghost" style="padding:0;justify-content:flex-start;text-align:left;color:var(--ink)" data-a="sheet" data-v="info" data-ex="${e.exId}"><h3>${esc(exName(e.exId))}</h3></button>
-    <div class="row small muted"><span>${e.sets.length} × ${esc(e.target||"—")}</span><span>· отдых ${e.rest>=60?Math.round(e.rest/60*10)/10+" мин":e.rest+" с"}</span>${e.note?`<span>· ${esc(e.note)}</span>`:""}${diff!=null?`<span class="chip ${better?"up":diff?"down":""}">${diff>0?"+":""}${fmtN(diff)} кг к прошлому</span>`:""}${!prev&&wc!=null?`<span class="chip">рабочий ${fmtN(wc)} кг</span>`:""}${EX[e.exId]?.assist?`<span class="chip">противовес</span>`:""}</div></div></div>
+    <div class="row small muted"><span>${e.sets.length} × ${esc(e.target||"—")}</span><span>· отдых ${e.rest>=60?Math.round(e.rest/60*10)/10+" мин":e.rest+" с"}</span>${e.note?`<span>· ${esc(e.note)}</span>`:""}${diff!=null?`<span class="chip ${better?"up":diff?"down":""}">${diff>0?"+":""}${fmtN(diff)}${unitTxt(du)} к прошлому</span>`:""}${!prev&&wc!=null?`<span class="chip">${wu==="повт."?"лучший подход":"рабочий"} ${fmtN(wc)}${unitTxt(wu)}</span>`:""}${EX[e.exId]?.assist?`<span class="chip">противовес</span>`:""}${bw?`<span class="chip">свой вес</span>`:""}</div></div></div>
     <div class="sets"><span class="h">№</span><span class="h" style="text-align:center">${bw?"доп. кг":"Вес, кг"}</span><span class="h" style="text-align:center">Повт.</span><span class="h" style="text-align:center">Прошлый раз</span><span></span>
     ${e.sets.map((s,j)=>{const p=prev?.sets[j]; return `<span class="sn">${j+1}</span>
-      <input id="w-${e.id}-${j}" type="number" inputmode="decimal" step="0.5" value="${esc(s.w)}" placeholder="${p?esc(p.w):esc(wc??"")}" data-i="setW" data-id="${id}" data-e="${e.id}" data-j="${j}" aria-label="Вес, подход ${j+1}" ${s.done?'class="done"':""}>
+      <input id="w-${e.id}-${j}" type="number" inputmode="decimal" step="0.5" value="${esc(s.w)}" placeholder="${p?esc(num(p.w)?p.w:(bw?"0":"")):esc(wu==="кг"?(wc??""):"0")}" data-i="setW" data-id="${id}" data-e="${e.id}" data-j="${j}" aria-label="Вес, подход ${j+1}" ${s.done?'class="done"':""}>
       <input id="r-${e.id}-${j}" type="number" inputmode="numeric" value="${esc(s.r)}" placeholder="${esc((e.target||"").split("–").pop().replace(/\D/g,"")||"")}" data-i="setR" data-id="${id}" data-e="${e.id}" data-j="${j}" aria-label="Повторы, подход ${j+1}">
-      <span class="prev">${p?(num(p.w)?fmtN(num(p.w)):"—")+(num(p.r)?" × "+p.r:""):"—"}</span>
+      <span class="prev">${!p?"—":num(p.w)?(bw?"+":"")+fmtN(num(p.w))+(num(p.r)?" × "+p.r:""):num(p.r)?p.r+" повт.":"—"}</span>
       ${box(s.done,`data-a="setDone" data-id="${id}" data-e="${e.id}" data-j="${j}" aria-label="Подход ${j+1} выполнен"`)}`}).join("")}</div>
     <div class="row"><button class="btn-sm" data-a="addSet" data-id="${id}" data-e="${e.id}">+ подход</button><button class="btn-sm" data-a="delSet" data-id="${id}" data-e="${e.id}" ${e.sets.length<2?"disabled":""}>− подход</button>
      <button class="btn-sm" data-a="sheet" data-v="swap" data-e="${e.id}">Заменить</button><span class="grow"></span>
@@ -550,18 +559,18 @@ function vProgress(){
   ${P!=="all"?`<p class="small muted" style="margin:0">Цветные метки — разница с прошлым${P==="week"?"й неделей":" месяцем"}.</p>`:""}
   <section class="card"><h2>Объём по неделям, т</h2>${barChart(vol8,{fmt:v=>fmtN(v)})}</section>
   <section class="card"><h2>Упражнения</h2>
-   ${so?`<div class="stack" style="gap:2px"><div class="eyebrow">Рабочий вес по тренировкам</div><h3>${esc(exName(so.id))}</h3></div>${lineChart(so.hist,{unit:" кг"})}`:""}
+   ${so?`<div class="stack" style="gap:2px"><div class="eyebrow">${so.u==="кг"?"Рабочий вес":"Лучший подход, повторы"} по тренировкам</div><h3>${esc(exName(so.id))}</h3></div>${lineChart(so.hist,{unit:unitTxt(so.u)})}`:""}
    ${st.length?`<div class="tbl-wrap"><table><thead><tr><th>Упражнение</th><th>Раз</th><th>Ср п</th><th>Ср вес</th><th>Макс</th><th>Мин</th></tr></thead><tbody>
-   ${st.map(s=>`<tr data-a="progEx" data-v="${s.id}" class="${s.id===sel?"sel":""}"><td>${esc(exName(s.id))}</td><td>${s.n}</td><td>${fmtN(s.sets/s.n)}</td><td>${s.wcnt?fmtN(s.wsum/s.wcnt):"—"}</td><td>${s.max>-Infinity?fmtN(s.max):"—"}</td><td>${s.min<Infinity?fmtN(s.min):"—"}</td></tr>`).join("")}</tbody></table></div><p class="small muted" style="margin:0">Нажми на строку, чтобы увидеть график.</p>`:'<div class="empty">За этот период тренировок нет</div>'}</section>
+   ${st.map(s=>`<tr data-a="progEx" data-v="${s.id}" class="${s.id===sel?"sel":""}"><td>${esc(exName(s.id))}</td><td>${s.n}</td><td>${fmtN(s.sets/s.n)}</td><td>${s.wcnt?fmtN(s.wsum/s.wcnt)+(s.u==="кг"?"":" п"):"—"}</td><td>${s.max>-Infinity?fmtN(s.max)+(s.u==="кг"?"":" п"):"—"}</td><td>${s.min<Infinity?fmtN(s.min)+(s.u==="кг"?"":" п"):"—"}</td></tr>`).join("")}</tbody></table></div><p class="small muted" style="margin:0">Нажми на строку, чтобы увидеть график. «п» — повторы в упражнениях со своим весом.</p>`:'<div class="empty">За этот период тренировок нет</div>'}</section>
   ${vWorking()}
   ${vBody()}`;
 }
 function vWorking(){
   const it=S.meta.working?.items||{}; const ids=Object.keys(it).filter(id=>EX[id]&&it[id].h?.length);
   return `<section class="card"><div class="row between"><h2>Рабочие веса</h2><span class="small muted">${ids.length} упр.</span></div>
-   <p class="small muted" style="margin:0">Подставляются в тренировку и обновляются сами после неё. Нажми на упражнение, чтобы записать новый вес.</p>
+   <p class="small muted" style="margin:0">Подставляются в тренировку и обновляются сами после неё. Для упражнений со своим весом записывается лучший подход в повторах. Нажми на упражнение, чтобы записать новое значение.</p>
    ${ids.length?GROUPS.map(g=>{const l=ids.filter(id=>EX[id].g===g); if(!l.length) return ""; return `<div class="eyebrow">${g}</div><div>${l.map(id=>{const h=it[id].h; const d=h.length>1?h[h.length-1]-h[0]:0; const good=EX[id].assist?d<0:d>0;
-     return `<div class="check"><button class="txt btn-ghost" style="padding:0;justify-content:flex-start;text-align:left;color:var(--ink)" data-a="sheet" data-v="info" data-ex="${id}"><span><b>${esc(exName(id))}</b><br><span class="small muted num">${h.map(fmtN).join(" → ")}${it[id].note?" · "+esc(it[id].note):""}</span></span></button><span class="num" style="font-size:20px">${fmtN(h[h.length-1])}</span>${h.length>1?`<span class="chip ${good?"up":d?"down":""}">${d>0?"+":""}${fmtN(d)}</span>`:""}</div>`}).join("")}</div>`}).join(""):'<div class="empty">Открой любое упражнение в «Ещё» → «Упражнения» и запиши рабочий вес</div>'}
+     return `<div class="check"><button class="txt btn-ghost" style="padding:0;justify-content:flex-start;text-align:left;color:var(--ink)" data-a="sheet" data-v="info" data-ex="${id}"><span><b>${esc(exName(id))}</b><br><span class="small muted num">${h.map(fmtN).join(" → ")}${unitTxt(it[id].u)}${it[id].note?" · "+esc(it[id].note):""}</span>${EX[id].archived?' <span class="chip">архив</span>':""}</span></button><span class="num" style="font-size:20px">${fmtN(h[h.length-1])}</span>${h.length>1?`<span class="chip ${good?"up":d?"down":""}">${d>0?"+":""}${fmtN(d)}</span>`:""}</div>`}).join("")}</div>`}).join(""):'<div class="empty">Открой любое упражнение в «Ещё» → «Упражнения» и запиши рабочий вес</div>'}
   </section>`;
 }
 const BODY=[["weight","Вес","кг"],["waist","Талия","см"],["chest","Грудь","см"],["hips","Бёдра","см"],["arm","Бицепс","см"],["thigh","Бедро","см"]];
@@ -643,7 +652,7 @@ function vRecipes(){
   <p class="small muted" style="margin:0">КБЖУ посчитано по базе FatSecret на 100 г продукта и граммовке рецепта.</p>`;
 }
 function vKB(){ return `<header><div class="eyebrow">База знаний</div><h1>Коротко о главном</h1></header>${ARTICLES.map(a=>`<details class="art"><summary>${a.n}</summary><ul>${a.b.map(x=>`<li>${x}</li>`).join("")}</ul></details>`).join("")}` }
-function vLibrary(){ return `<header><div class="eyebrow">Справочник</div><h1>Упражнения</h1></header>${GROUPS.map(g=>`<section class="card"><h2>${g}</h2>${Object.entries(EX).filter(([,e])=>e.g===g).map(([id,e])=>`<button class="pick" data-a="sheet" data-v="info" data-ex="${id}"><span>${e.n}</span><span class="muted">›</span></button>`).join("")}</section>`).join("")}` }
+function vLibrary(){ return `<header><div class="eyebrow">Справочник</div><h1>Упражнения</h1></header>${GROUPS.map(g=>`<section class="card"><h2>${g}</h2>${Object.entries(EX).filter(([,e])=>e.g===g&&!e.archived).map(([id,e])=>`<button class="pick" data-a="sheet" data-v="info" data-ex="${id}"><span>${e.n}${e.bw?' <span class="chip">свой вес</span>':""}</span><span class="muted">›</span></button>`).join("")}</section>`).join("")}` }
 function vCoach(){
   return `<header><div class="eyebrow">Тренер</div><h1>Спроси ИИ</h1></header>
   ${Store.sample?"":`<div class="banner">ИИ-тренер работает, когда приложение открыто на claude.ai.</div>`}
@@ -669,15 +678,15 @@ function renderSheet(){
   const wid=UI.openWorkout||activeWorkout();
   if(sh.type==="info"){ const e=EX[sh.ex]; body=`<div class="eyebrow">${e.g}</div><h2>${e.n}</h2><p style="margin:0">${e.tip}</p>
     <a class="btn" href="https://www.youtube.com/results?search_query=${encodeURIComponent("техника "+e.n)}" target="_blank" rel="noopener">Смотреть технику на YouTube ↗</a>
-    ${(()=>{const h=S.meta.working?.items?.[sh.ex]?.h||[], note=S.meta.working?.items?.[sh.ex]?.note; return `<div class="eyebrow">Рабочий вес${EX[sh.ex].assist?" (противовес)":""}</div>
-      ${h.length?`<div class="num" style="font-size:18px">${h.map(fmtN).join(" → ")} кг</div>${note?`<div class="small muted">${esc(note)}</div>`:""}${h.length>1?lineChart(h.map((v,i)=>({l:"шаг "+(i+1),v})),{unit:" кг",color:"var(--green)"}):""}`:'<div class="small muted">Ещё не записан</div>'}
-      <div class="add"><input id="work-in" type="number" inputmode="decimal" step="0.25" placeholder="Новый рабочий вес, кг"><button data-a="addWork" data-ex="${sh.ex}">Записать</button></div>
+    ${(()=>{const h=S.meta.working?.items?.[sh.ex]?.h||[], note=S.meta.working?.items?.[sh.ex]?.note, u=S.meta.working?.items?.[sh.ex]?.u||(EX[sh.ex].bw?"повт.":"кг"); return `<div class="eyebrow">${u==="кг"?"Рабочий вес":"Лучший подход, повторы"}${EX[sh.ex].assist?" (противовес)":""}</div>
+      ${h.length?`<div class="num" style="font-size:18px">${h.map(fmtN).join(" → ")}${unitTxt(u)}</div>${note?`<div class="small muted">${esc(note)}</div>`:""}${h.length>1?lineChart(h.map((v,i)=>({l:"шаг "+(i+1),v})),{unit:unitTxt(u),color:"var(--green)"}):""}`:'<div class="small muted">Ещё не записан</div>'}
+      ${EX[sh.ex].archived?"":`<div class="add"><input id="work-in" type="number" inputmode="decimal" step="${u==="кг"?"0.25":"1"}" placeholder="${u==="кг"?"Новый рабочий вес, кг":"Лучший подход, повторов"}"><button data-a="addWork" data-ex="${sh.ex}">Записать</button></div>`}
       ${h.length?`<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="undoWork" data-ex="${sh.ex}">Убрать последнее значение</button>`:""}`})()}
-    ${(()=>{const st=exStats(null).find(s=>s.id===sh.ex); return st?`<div class="eyebrow">Вес по тренировкам из дневника</div>${lineChart(st.hist,{unit:" кг"})}`:""})()}` }
+    ${(()=>{const st=exStats(null).find(s=>s.id===sh.ex); return st&&st.hist.length?`<div class="eyebrow">${st.u==="кг"?"Вес":"Повторы"} по тренировкам из дневника</div>${lineChart(st.hist,{unit:unitTxt(st.u)})}`:""})()}` }
   else if(sh.type==="pick"||sh.type==="swap"){
     const w=S.workouts[wid]; const cur=sh.type==="swap"?w?.ex.find(e=>e.id===sh.e):null; const q=(sh.q||"").toLowerCase();
     const alts=cur?(cur.alt||[]):[]; const grp=cur?EX[cur.exId]?.g:null;
-    const list=Object.entries(EX).filter(([id,e])=>(!cur||id!==cur.exId)&&(!q||e.n.toLowerCase().includes(q)));
+    const list=Object.entries(EX).filter(([id,e])=>!e.archived&&(!cur||id!==cur.exId)&&(!q||e.n.toLowerCase().includes(q)));
     const sec=(t,items)=>items.length?`<div class="eyebrow">${t}</div>${items.map(([id,e])=>`<button class="pick" data-a="${sh.type==="swap"?"doSwap":"doPick"}" data-ex="${id}"><span>${e.n}</span><span class="small muted">${e.g}</span></button>`).join("")}`:"";
     body=`<h2>${cur?"Заменить: "+esc(exName(cur.exId)):"Добавить упражнение"}</h2><input id="pick-q" placeholder="Поиск" value="${esc(sh.q||"")}" data-i="pickQ" autocomplete="off">
      ${cur?sec("Замены из программы",list.filter(([id])=>alts.includes(id)))+sec("Та же группа: "+grp,list.filter(([id,e])=>e.g===grp&&!alts.includes(id)))+sec("Остальные",list.filter(([id,e])=>e.g!==grp&&!alts.includes(id)))
@@ -709,7 +718,7 @@ function newWorkout(title,programId,items){
   S.workouts[id]=w; for(const it of items) w.ex.push(makeEx(id,it)); save("workouts",id); UI.openWorkout=id; UI.tab="train"; keepAwake(); scrollTo(0,0);
 }
 function makeEx(wid,it){ const prev=prevFor(it.ex,wid); const n=it.sets||4;
-  return {id:uid(),exId:it.ex,target:it.reps||"",rest:it.rest||120,alt:it.alt||[],note:it.note||"",sets:[...Array(n)].map((_,j)=>({w:prev?.sets[j]?.w??prev?.sets[prev.sets.length-1]?.w??workCur(it.ex)??"",r:"",done:false}))} }
+  return {id:uid(),exId:it.ex,target:it.reps||"",rest:it.rest||120,alt:it.alt||[],note:it.note||"",sets:[...Array(n)].map((_,j)=>({w:prev?.sets[j]?.w??prev?.sets[prev.sets.length-1]?.w??(workUnit(it.ex)==="кг"?workCur(it.ex):null)??"",r:"",done:false}))} }
 const ACT={
   tab:d=>{UI.tab=d.v; if(d.v!=="more")UI.more=null; if(d.v==="train")UI.openWorkout=null; scrollTo(0,0)},
   go:d=>{UI.tab=d.v; UI.more=d.m||null; scrollTo(0,0)},
@@ -739,8 +748,9 @@ const ACT={
   openW:d=>{UI.openWorkout=d.id; UI.tab="train"; scrollTo(0,0)},
   closeW:()=>{UI.openWorkout=null; scrollTo(0,0)},
   finishW:d=>{const w=S.workouts[d.id]; w.finishedAt=Date.now(); save("workouts",d.id);
-    let wch=false; for(const e of w.ex){ const ws=doneSets(e).map(s=>num(s.w)).filter(v=>v>0); if(!ws.length) continue; const top=EX[e.exId]?.assist?Math.min(...ws):Math.max(...ws);
-      const it=working().items[e.exId]||(working().items[e.exId]={h:[]}); if(it.h[it.h.length-1]!==top){ it.h.push(top); wch=true } } if(wch) save("meta","working"); rest.end=0; try{wakeLock?.release()}catch(e){} toast(`Готово: ${wSets(w)} подходов, ${fmtN(wVolume(w)/1000)} т`); scrollTo(0,0)},
+    let wch=false; for(const e of w.ex){ const t=topOf(e.exId,doneSets(e)); if(!t) continue;
+      const it=working().items[e.exId]||(working().items[e.exId]={h:[]}); if((it.u||"кг")!==t.u){ it.h=[]; it.u=t.u; wch=true }
+      if(it.h[it.h.length-1]!==t.v){ it.h.push(t.v); wch=true } } if(wch) save("meta","working"); rest.end=0; try{wakeLock?.release()}catch(e){} toast(`Готово: ${wSets(w)} подходов, ${fmtN(wVolume(w)/1000)} т`); scrollTo(0,0)},
   wFlag:d=>{const w=S.workouts[d.id]; w[d.f]=!w[d.f]; save("workouts",d.id)},
   cardio:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.type=d.v; save("workouts",d.id)},
   cardioDone:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.done=!w.cardio.done; save("workouts",d.id)},
@@ -752,7 +762,7 @@ const ACT={
   moveEx:d=>{const w=S.workouts[d.id]; const i=w.ex.findIndex(e=>e.id===d.e), j=i+(+d.v); if(j<0||j>=w.ex.length) return; [w.ex[i],w.ex[j]]=[w.ex[j],w.ex[i]]; save("workouts",d.id)},
   sheet:d=>{UI.sheet={type:d.v,ex:d.ex,e:d.e}},
   sheetClose:()=>{UI.sheet=null}, sheetBg:(d,t,ev)=>{ if(ev.target===t) UI.sheet=null; else return false },
-  doPick:d=>{const id=UI.openWorkout||activeWorkout(); const w=S.workouts[id]; w.ex.push(makeEx(id,{ex:d.ex,sets:3,reps:EX[d.ex].bw?"до отказа":"8–12",rest:120})); save("workouts",id); UI.sheet=null},
+  doPick:d=>{const id=UI.openWorkout||activeWorkout(); const w=S.workouts[id]; w.ex.push(makeEx(id,{ex:d.ex,...(EX[d.ex].def||{sets:3,reps:EX[d.ex].bw?"до отказа":"8–12",rest:120})})); save("workouts",id); UI.sheet=null},
   doSwap:d=>{const id=UI.openWorkout||activeWorkout(); const w=S.workouts[id]; const e=w.ex.find(e=>e.id===UI.sheet.e); const old=e.exId; e.exId=d.ex; e.alt=[old,...(e.alt||[]).filter(a=>a!==d.ex)];
     const prev=prevFor(d.ex,id); e.sets=e.sets.map((s,j)=>({w:prev?.sets[j]?.w??"",r:"",done:false})); save("workouts",id); UI.sheet=null},
   delW:()=>{const id=UI.openWorkout||activeWorkout(); remove("workouts",id); UI.openWorkout=null; UI.sheet=null; rest.end=0},
@@ -760,7 +770,7 @@ const ACT={
   doSaveProg:()=>{const w=S.workouts[UI.sheet.wid]; const n=(document.getElementById("prog-name")?.value||"").trim()||w.title; const s=settings(); s.customPrograms=s.customPrograms||[];
     s.customPrograms.push({id:"P"+uid(),n,scheme:"своя",items:w.ex.map(e=>({ex:e.exId,sets:e.sets.length,reps:e.target,rest:e.rest,alt:e.alt}))}); save("meta","settings"); UI.sheet=null; toast("Программа сохранена")},
   delProg:d=>{const s=settings(); s.customPrograms=s.customPrograms.filter(p=>p.id!==d.id); save("meta","settings")},
-  addWork:d=>{const v=num(document.getElementById("work-in")?.value); if(!v){toast("Впиши вес в кг");return} const it=working().items[d.ex]||(working().items[d.ex]={h:[]}); it.h.push(v); save("meta","working")},
+  addWork:d=>{const v=num(document.getElementById("work-in")?.value); if(!v){toast("Впиши число");return} const it=working().items[d.ex]||(working().items[d.ex]={h:[],u:EX[d.ex]?.bw?"повт.":"кг"}); it.h.push(v); save("meta","working")},
   undoWork:d=>{const it=working().items[d.ex]; if(it?.h.length){ it.h.pop(); save("meta","working") }},
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
