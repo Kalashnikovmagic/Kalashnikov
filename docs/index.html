@@ -270,12 +270,13 @@ const FOOD={
 /* f — продукт или список взаимозаменяемых продуктов, g — граммы, u — подпись к граммам */
 const RECIPES=[
   {n:"Капучино",t:["Завтрак","Обед","Ужин"],items:[{f:"espresso",g:30,u:"1 шот"},{f:"milk32",g:170,u:"170 мл"}]},
+  {n:"Протеиновый коктейль",t:["Завтрак","Обед","Ужин"],fixed:{k:300,p:34,f:11,c:17}},
   {n:"Овсяноблин",t:["Завтрак"],items:[{f:"oats",g:55},{f:"milk",g:80,u:"80 мл"},{f:"egg",g:100,u:"2 шт."},{f:["chicken","turkey"],g:45},{f:"cream_cheese",g:7},{f:"gouda",g:15},{f:"tomato",g:50},{f:"cucumber",g:40},{f:"pickle",g:20},{f:"lettuce",g:20},{f:"jalapeno",g:10},{f:"teriyaki",g:15}]},
   {n:"Овсянка с ягодами",t:["Завтрак"],items:[{f:"oats",g:85,u:"85 г сухих"},{f:"whey",g:15},{f:"banana",g:120},{f:"nectarine",g:70},{f:"nuts",g:20}]},
   {n:"Курица или индейка с крупой",t:["Обед"],items:[{f:["chicken","turkey"],g:250,u:"250 г готовой, без масла"},{f:["rice","buckwheat","bulgur"],g:80,u:"80 г сухой"},{f:"veg",g:250}]},
   {n:"Творог с греческим йогуртом и ягодами",t:["Ужин"],items:[{f:"tvorog",g:200},{f:"greek",g:80},{f:["banana","nectarine"],g:120},{f:"whey",g:15},{f:"nuts",g:25}]},
 ];
-function recipeCalc(ri){ const r=RECIPES[ri]; const sel=UI.rsel[ri]||{}; const lines=r.items.map((it,ii)=>{const id=Array.isArray(it.f)?it.f[sel[ii]||0]:it.f; const fd=FOOD[id]; const m=it.g/100;
+function recipeCalc(ri){ const r=RECIPES[ri]; if(r.fixed) return {r,lines:[],t:r.fixed,label:r.n}; const sel=UI.rsel[ri]||{}; const lines=r.items.map((it,ii)=>{const id=Array.isArray(it.f)?it.f[sel[ii]||0]:it.f; const fd=FOOD[id]; const m=it.g/100;
   return {ii,id,fd,g:it.g,u:it.u,alts:Array.isArray(it.f)?it.f:null,k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m}});
   const t=lines.reduce((a,l)=>({k:a.k+l.k,p:a.p+l.p,f:a.f+l.f,c:a.c+l.c}),{k:0,p:0,f:0,c:0});
   return {r,lines,t,label:r.n+(lines.some(l=>l.alts)?" ("+lines.filter(l=>l.alts).map(l=>FOOD[l.id].n.split(" (")[0].toLowerCase()).join(", ")+")":"")} }
@@ -636,6 +637,7 @@ function vRecipes(){
    <div class="row between"><h3>${r.n}</h3><span class="num" style="font-size:20px">${Math.round(t.k)} ккал</span></div>
    <div class="row small"><span class="chip">Б ${Math.round(t.p)} г</span><span class="chip">Ж ${Math.round(t.f)} г</span><span class="chip">У ${Math.round(t.c)} г</span></div>
    ${R.lines.filter(l=>l.alts).map(l=>`<div class="row">${l.alts.map((id,ai)=>`<button class="chip" aria-pressed="${l.id===id}" data-a="rsel" data-r="${ri}" data-i="${l.ii}" data-v="${ai}">${esc(FOOD[id].n)}</button>`).join("")}</div>`).join("")}
+   ${r.fixed?'<p class="small muted" style="margin:0">КБЖУ на порцию по твоим данным</p>':""}
    <div>${R.lines.map(l=>`<div class="check small"><span class="txt">${esc(l.fd.n)}</span><span class="muted num">${esc(l.u||l.g+" г")}</span><span class="num" style="min-width:64px;text-align:right">${Math.round(l.k)} ккал</span></div>`).join("")}</div>
    <button class="btn-sm" style="align-self:flex-start" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button></section>`}).join("")}
   <p class="small muted" style="margin:0">КБЖУ посчитано по базе FatSecret на 100 г продукта и граммовке рецепта.</p>`;
