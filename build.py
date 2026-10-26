@@ -32,7 +32,7 @@ TAIL = """
 src = open(os.path.join(ROOT, "zhelezo.html"), encoding="utf8").read()
 open(os.path.join(OUT, "index.html"), "w", encoding="utf8").write(HEAD + src + TAIL)
 
-open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="zhelezo-v2";
+open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="zhelezo-v3";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./icon-180.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
