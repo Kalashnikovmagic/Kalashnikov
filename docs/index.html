@@ -448,7 +448,7 @@ function vToday(){
   <section class="card">${train}</section>
   <section class="card"><div class="row between"><h2>Привычки и задачи</h2><span class="chip ${st.total&&st.done===st.total?"up":"acc"}">${st.done} из ${st.total}</span></div>
     <div>${hab.map(h=>`<div class="check ${d.habits?.[h.id]?"done":""}">${box(d.habits?.[h.id],`data-a="habit" data-id="${h.id}" aria-label="${esc(h.name)}"`)}<span class="txt">${esc(h.name)}</span><span class="chip">привычка</span></div>`).join("")}
-    ${(d.tasks||[]).map(x=>`<div class="check ${x.done?"done":""}">${box(x.done,`data-a="task" data-day="${k}" data-id="${x.id}" aria-label="${esc(x.text)}"`)}<span class="txt">${esc(x.text)}</span><button class="x" data-a="delTask" data-day="${k}" data-id="${x.id}" aria-label="Удалить">×</button></div>`).join("")}</div>
+    ${(d.tasks||[]).map(x=>`<div class="check ${x.done?"done":""}">${box(x.done,`data-a="task" data-day="${k}" data-id="${x.id}" aria-label="${esc(x.text)}"`)}<span class="txt">${esc(x.text)}</span>${x.done?"":`<button class="btn-sm" data-a="moveTask" data-day="${k}" data-id="${x.id}" aria-label="Перенести «${esc(x.text)}» на завтра">→ завтра</button>`}<button class="x" data-a="delTask" data-day="${k}" data-id="${x.id}" aria-label="Удалить">×</button></div>`).join("")}</div>
     <div class="add"><input id="add-task-${k}" placeholder="Новая задача на день" data-enter="addTask" data-day="${k}" autocomplete="off"><button data-a="addTask" data-day="${k}">Добавить</button></div>
     <button class="btn-ghost" style="align-self:flex-start" data-a="go" data-v="more" data-m="settings">Изменить список привычек</button></section>
   <section class="card"><h2>Состояние</h2>
@@ -483,7 +483,7 @@ function vWeek(){
   <section class="card"><h2>Выполнено по дням</h2>${barChart(stats.map(s=>({l:WDS[wdIdx(s.k)],v:Math.round(s.p*100),hi:s.k===tk})),{max:100,fmt:v=>v+"%"})}</section>
   <div class="days">${keys.map(k=>{const d=peekDay(k)||{tasks:[]}; const s=dayStats(k); return `<section class="card">
     <div class="dayhd"><h3 class="${k===tk?"today-mark":""}">${WD[wdIdx(k)]}</h3><span class="small muted">${fmtDs(k)} · ${s.done}/${s.total}</span></div>
-    <div>${(d.tasks||[]).map(x=>`<div class="check ${x.done?"done":""}">${box(x.done,`data-a="task" data-day="${k}" data-id="${x.id}" aria-label="${esc(x.text)}"`)}<span class="txt">${esc(x.text)}</span><button class="x" data-a="delTask" data-day="${k}" data-id="${x.id}" aria-label="Удалить">×</button></div>`).join("")}</div>
+    <div>${(d.tasks||[]).map(x=>`<div class="check ${x.done?"done":""}">${box(x.done,`data-a="task" data-day="${k}" data-id="${x.id}" aria-label="${esc(x.text)}"`)}<span class="txt">${esc(x.text)}</span>${x.done?"":`<button class="btn-sm" data-a="moveTask" data-day="${k}" data-id="${x.id}" aria-label="Перенести «${esc(x.text)}» на завтра">→ завтра</button>`}<button class="x" data-a="delTask" data-day="${k}" data-id="${x.id}" aria-label="Удалить">×</button></div>`).join("")}</div>
     <div class="add"><input id="add-task-${k}" placeholder="Задача" data-enter="addTask" data-day="${k}" autocomplete="off"><button class="btn-sm" data-a="addTask" data-day="${k}">+</button></div>
     <div class="row between"><div class="state-row"><span>Сон ${d.sleep?d.sleep+" ч":"—"}</span><span>${d.energy?"⚡".repeat(d.energy):"⚡—"}</span><span>${d.mood?MOODS[d.mood-1]:"—"}</span>${trainDays.has(k)?'<span class="chip acc">тренировка</span>':""}</div><button class="btn-ghost btn-sm" data-a="openDay" data-day="${k}">День ›</button></div>
     ${d.lesson?`<div class="small"><span class="muted">Урок дня:</span> ${esc(d.lesson)}</div>`:""}</section>`}).join("")}</div>`;
@@ -729,6 +729,8 @@ const ACT={
   habit:d=>{const k=UI.day,x=day(k); x.habits=x.habits||{}; x.habits[d.id]=!x.habits[d.id]; saveDay(k)},
   task:d=>{const x=day(d.day).tasks.find(t=>t.id===d.id); if(x){x.done=!x.done; saveDay(d.day)}},
   delTask:d=>{const x=day(d.day); x.tasks=x.tasks.filter(t=>t.id!==d.id); saveDay(d.day)},
+  moveTask:d=>{const x=day(d.day), t=x.tasks.find(t=>t.id===d.id); if(!t) return; const next=ymd(addDays(parseYmd(d.day),1));
+    x.tasks=x.tasks.filter(t=>t.id!==d.id); day(next).tasks.push({...t,done:false}); saveDay(d.day); if(weekKey(next)!==weekKey(d.day)) saveDay(next); toast("Перенесено на "+(next===todayKey()?"сегодня":fmtD(next)))},
   addTask:d=>{const inp=document.getElementById("add-task-"+d.day); const v=inp?.value.trim(); if(!v) return; day(d.day).tasks.push({id:uid(),text:v,done:false}); saveDay(d.day); inp.value=""},
   goal:d=>{const g=week(d.w).goals.find(x=>x.id===d.id); if(g){g.done=!g.done; save("weeks",d.w)}},
   delGoal:d=>{const w=week(d.w); w.goals=w.goals.filter(x=>x.id!==d.id); save("weeks",d.w)},

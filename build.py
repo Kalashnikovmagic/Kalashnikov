@@ -45,7 +45,7 @@ TAIL = """
 src = open(os.path.join(ROOT, "kalashnikov.html"), encoding="utf8").read()
 open(os.path.join(OUT, "index.html"), "w", encoding="utf8").write(HEAD + src + TAIL)
 
-open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="kalashnikov-v4";
+open(os.path.join(OUT, "sw.js"), "w", encoding="utf8").write("""const C="kalashnikov-v5";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png?v=2","./icon-512.png?v=2","./icon-180.png?v=2","./icon-32.png?v=2"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
