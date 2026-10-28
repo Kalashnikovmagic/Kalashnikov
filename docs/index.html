@@ -109,7 +109,7 @@ nav.tabs button[aria-current=page]{color:var(--accent);font-weight:600}
 .p-A{background:var(--red)} .p-B{background:var(--accent)} .p-C{background:var(--yellow)} .p-X{background:var(--muted)}
 /* workout logger */
 .ex-head{display:flex;gap:10px;align-items:flex-start}
-.ex-n{font-family:var(--f-display);font-size:22px;color:var(--muted);width:24px;flex:none;line-height:1.1}
+.ex-n{font-family:var(--f-display);font-size:22px;color:var(--muted);min-width:30px;flex:none;line-height:1.1}
 .sets{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) 40px;gap:6px;align-items:center}
 .sets .h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .sets input{padding:8px 6px;text-align:center}
@@ -117,6 +117,7 @@ nav.tabs button[aria-current=page]{color:var(--accent);font-weight:600}
 .sets .sn{font-family:var(--f-display);color:var(--muted);text-align:center}
 .sets .box{width:36px;height:36px;border-radius:10px}
 .sets input.done{background:var(--green-soft)}
+.ss{border:1px solid var(--accent);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:10px;background:var(--accent-soft)}
 .restbar{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:19;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .restbar .in{max-width:640px;margin:0 auto 8px;background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px}
 .restbar .t{font-family:var(--f-display);font-size:26px;font-variant-numeric:tabular-nums;min-width:70px}
@@ -494,13 +495,14 @@ function vTrain(){
   const id=UI.openWorkout||activeWorkout(); if(id&&S.workouts[id]) return vLogger(id);
   const hist=finished().reverse(); const np=nextProgram(); const cps=settings().customPrograms||[];
   return `<header><div class="eyebrow">Тренировка</div><h1>Программы</h1></header>
+  <section class="card"><div class="check ${settings().supersets?"":""}">${box(settings().supersets,'data-a="ssToggle" aria-label="Суперсерии"')}<span class="txt"><b>Суперсерии</b><br><span class="small muted">Грудь + спина, плечи + ноги, бицепс + трицепс. Пары соберутся сами, когда начнёшь программу. Связать вручную можно кнопкой «Суперсерия» у упражнения.</span></span></div></section>
   ${PROGRAMS.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-${p.id}"></span><div class="grow stack" style="gap:4px">
     <div class="row between"><h2>${p.n}</h2>${p.id===np?'<span class="chip acc">следующая</span>':""}</div><div class="small muted">${p.src} · ${p.scheme}</div>
     <div class="small">${p.items.map(i=>exName(i.ex)).join(" · ")}</div><div class="small muted">Разминка: 10 мин эллипс · Кардио 15 мин · Заминка</div></div></div>
     <button class="${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}">Начать</button></section>`).join("")}
   ${cps.length?`<h2>Свои программы</h2>${cps.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-X"></span><div class="grow"><h3>${esc(p.n)}</h3><div class="small muted">${p.items.map(i=>exName(i.ex)).join(" · ")}</div></div></div><div class="row"><button class="grow" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm btn-danger" data-a="delProg" data-id="${p.id}">Удалить</button></div></section>`).join("")}`:""}
   <button data-a="startEmpty">Пустая тренировка — набрать упражнения самому</button>
-  <section class="card"><h2>История</h2>${hist.length?hist.slice(0,30).map(w=>`<button class="pick" data-a="openW" data-id="${w.id}"><span><b>${esc(w.title)}</b><br><span class="small muted">${fmtD(w.date)} · ${w.ex.length} упр. · ${wSets(w)} подх.</span></span><span class="num">${fmtN(wVolume(w)/1000)} т</span></button>`).join(""):'<div class="empty">Здесь появятся завершённые тренировки</div>'}</section>`;
+  <section class="card"><h2>История</h2>${hist.length?hist.slice(0,30).map(w=>`<button class="pick" data-a="openW" data-id="${w.id}"><span><b>${esc(w.title)}</b><br><span class="small muted">${fmtD(w.date)} · ${w.ex.length} упр. · ${wSets(w)} подх.${w.ex.some(e=>e.ss)?" · суперсерии":""}</span></span><span class="num">${fmtN(wVolume(w)/1000)} т</span></button>`).join(""):'<div class="empty">Здесь появятся завершённые тренировки</div>'}</section>`;
 }
 function vLogger(id){
   const w=S.workouts[id]; const fin=!!w.finishedAt; const el=fin?((w.finishedAt-(w.startedAt||w.finishedAt))/1000):((Date.now()-w.startedAt)/1000);
@@ -509,7 +511,7 @@ function vLogger(id){
     <div class="stack" style="align-items:flex-end;gap:4px"><span class="num" style="font-size:22px" id="wk-el">${mmss(el)}</span>${fin?`<button class="btn-sm" data-a="closeW">К списку</button>`:""}</div></header>
   ${fin?`<div class="grid3"><div class="kpi"><span class="v">${wSets(w)}</span><span class="l">Подходов</span></div><div class="kpi"><span class="v">${fmtN(wVolume(w)/1000)}</span><span class="l">Объём, т</span></div><div class="kpi"><span class="v">${w.ex.filter(e=>doneSets(e).length).length}/${w.ex.length}</span><span class="l">Упражнений</span></div></div>`:""}
   <section class="card"><div class="check ${w.warmup?"done":""}">${box(w.warmup,`data-a="wFlag" data-id="${id}" data-f="warmup" aria-label="Разминка"`)}<span class="txt">Разминка: 10 минут эллипс</span></div></section>
-  ${w.ex.map((e,i)=>vExercise(id,w,e,i)).join("")}
+  ${vExList(id,w)}
   <button data-a="sheet" data-v="pick">+ Добавить упражнение</button>
   <section class="card"><div class="row between"><h2>Кардио 15 мин</h2>${box(w.cardio?.done,`data-a="cardioDone" data-id="${id}" aria-label="Кардио выполнено"`)}</div>
     <div class="stack">${CARDIO.map(c=>`<button class="pick" data-a="cardio" data-id="${id}" data-v="${c.id}" aria-pressed="${cardioSel===c.id}" style="${cardioSel===c.id?"outline:2px solid var(--accent)":""}"><span><b>${c.n}</b><br><span class="small muted">${c.d}</span></span></button>`).join("")}</div>
@@ -519,12 +521,18 @@ function vLogger(id){
   <div class="stack">${fin?`<button data-a="saveProg" data-id="${id}">Сохранить как свою программу</button><button class="btn-danger" data-a="sheet" data-v="delW">Удалить тренировку</button>`:
     `<button class="btn-primary" data-a="finishW" data-id="${id}">Завершить тренировку</button><button class="btn-ghost" data-a="sheet" data-v="delW">Отменить и удалить</button>`}</div>`;
 }
+function vExList(id,w){ let n=0,out=""; for(let i=0;i<w.ex.length;i++){ const e=w.ex[i], p=partner(w,e); n++;
+    if(p&&w.ex[i+1]===p){ const ga=EX[e.exId]?.g, gb=EX[p.exId]?.g;
+      out+=`<div class="ss"><div class="row between"><span class="eyebrow" style="color:var(--accent)">Суперсерия · ${ga}${ga!==gb?" + "+gb:""}</span>${w.finishedAt?"":`<button class="btn-ghost btn-sm" data-a="ssBreak" data-id="${id}" data-e="${e.id}">Разорвать</button>`}</div>
+        <p class="small muted" style="margin:0">По очереди: ${n}A → ${n}Б → отдых, и так каждый подход</p>${vExercise(id,w,e,n+"A")}${vExercise(id,w,p,n+"Б")}</div>`; i++ }
+    else out+=vExercise(id,w,e,String(n)) }
+  return out }
 function vExercise(id,w,e,i){
   const prev=prevFor(e.exId,id); const cur=topOf(e.exId,doneSets(e)), pt=prev?topOf(e.exId,prev.sets):null;
   const diff=cur&&pt&&cur.u===pt.u?cur.v-pt.v:null, du=cur?.u; const bw=EX[e.exId]?.bw; const wc=workCur(e.exId), wu=workUnit(e.exId); const better=diff!=null&&(EX[e.exId]?.assist?diff<0:diff>0);
-  return `<section class="card"><div class="ex-head"><span class="ex-n">${i+1}</span><div class="grow stack" style="gap:3px">
+  return `<section class="card"><div class="ex-head"><span class="ex-n">${i}</span><div class="grow stack" style="gap:3px">
     <button class="btn-ghost" style="padding:0;justify-content:flex-start;text-align:left;color:var(--ink)" data-a="sheet" data-v="info" data-ex="${e.exId}"><h3>${esc(exName(e.exId))}</h3></button>
-    <div class="row small muted"><span>${e.sets.length} × ${esc(e.target||"—")}</span><span>· отдых ${e.rest>=60?Math.round(e.rest/60*10)/10+" мин":e.rest+" с"}</span>${e.note?`<span>· ${esc(e.note)}</span>`:""}${diff!=null?`<span class="chip ${better?"up":diff?"down":""}">${diff>0?"+":""}${fmtN(diff)}${unitTxt(du)} к прошлому</span>`:""}${!prev&&wc!=null?`<span class="chip">${wu==="повт."?"лучший подход":"рабочий"} ${fmtN(wc)}${unitTxt(wu)}</span>`:""}${EX[e.exId]?.assist?`<span class="chip">противовес</span>`:""}${bw?`<span class="chip">свой вес</span>`:""}</div></div></div>
+    <div class="row small muted"><span>${e.sets.length} × ${esc(e.target||"—")}</span><span>${(()=>{const p=partner(w,e); if(p&&w.ex.indexOf(e)<w.ex.indexOf(p)) return "· без отдыха, сразу ко второму"; const r=p?Math.max(e.rest||120,p.rest||120):e.rest; return "· отдых "+(p?"после пары ":"")+(r>=60?Math.round(r/60*10)/10+" мин":r+" с")})()}</span>${e.note?`<span>· ${esc(e.note)}</span>`:""}${diff!=null?`<span class="chip ${better?"up":diff?"down":""}">${diff>0?"+":""}${fmtN(diff)}${unitTxt(du)} к прошлому</span>`:""}${!prev&&wc!=null?`<span class="chip">${wu==="повт."?"лучший подход":"рабочий"} ${fmtN(wc)}${unitTxt(wu)}</span>`:""}${EX[e.exId]?.assist?`<span class="chip">противовес</span>`:""}${bw?`<span class="chip">свой вес</span>`:""}</div></div></div>
     <div class="sets"><span class="h">№</span><span class="h" style="text-align:center">${bw?"доп. кг":"Вес, кг"}</span><span class="h" style="text-align:center">Повт.</span><span class="h" style="text-align:center">Прошлый раз</span><span></span>
     ${e.sets.map((s,j)=>{const p=prev?.sets[j]; return `<span class="sn">${j+1}</span>
       <input id="w-${e.id}-${j}" type="number" inputmode="decimal" step="0.5" value="${esc(s.w)}" placeholder="${p?esc(num(p.w)?p.w:(bw?"0":"")):esc(wu==="кг"?(wc??""):"0")}" data-i="setW" data-id="${id}" data-e="${e.id}" data-j="${j}" aria-label="Вес, подход ${j+1}" ${s.done?'class="done"':""}>
@@ -532,7 +540,7 @@ function vExercise(id,w,e,i){
       <span class="prev">${!p?"—":num(p.w)?(bw?"+":"")+fmtN(num(p.w))+(num(p.r)?" × "+p.r:""):num(p.r)?p.r+" повт.":"—"}</span>
       ${box(s.done,`data-a="setDone" data-id="${id}" data-e="${e.id}" data-j="${j}" aria-label="Подход ${j+1} выполнен"`)}`}).join("")}</div>
     <div class="row"><button class="btn-sm" data-a="addSet" data-id="${id}" data-e="${e.id}">+ подход</button><button class="btn-sm" data-a="delSet" data-id="${id}" data-e="${e.id}" ${e.sets.length<2?"disabled":""}>− подход</button>
-     <button class="btn-sm" data-a="sheet" data-v="swap" data-e="${e.id}">Заменить</button><span class="grow"></span>
+     <button class="btn-sm" data-a="sheet" data-v="swap" data-e="${e.id}">Заменить</button>${e.ss||w.finishedAt?"":`<button class="btn-sm" data-a="sheet" data-v="ss" data-e="${e.id}">Суперсерия</button>`}<span class="grow"></span>
      <button class="icon-btn" data-a="moveEx" data-id="${id}" data-e="${e.id}" data-v="-1" aria-label="Выше">↑</button><button class="icon-btn" data-a="moveEx" data-id="${id}" data-e="${e.id}" data-v="1" aria-label="Ниже">↓</button><button class="icon-btn" data-a="delEx" data-id="${id}" data-e="${e.id}" aria-label="Убрать упражнение">×</button></div></section>`;
 }
 
@@ -691,6 +699,10 @@ function renderSheet(){
     body=`<h2>${cur?"Заменить: "+esc(exName(cur.exId)):"Добавить упражнение"}</h2><input id="pick-q" placeholder="Поиск" value="${esc(sh.q||"")}" data-i="pickQ" autocomplete="off">
      ${cur?sec("Замены из программы",list.filter(([id])=>alts.includes(id)))+sec("Та же группа: "+grp,list.filter(([id,e])=>e.g===grp&&!alts.includes(id)))+sec("Остальные",list.filter(([id,e])=>e.g!==grp&&!alts.includes(id)))
        :GROUPS.map(g=>sec(g,list.filter(([,e])=>e.g===g))).join("")}`; }
+  else if(sh.type==="ss"){ const w=S.workouts[wid]; const e=w?.ex.find(x=>x.id===sh.e); if(!e){ UI.sheet=null; el.innerHTML=""; return }
+    const g=EX[e.exId]?.g, pairG=(SS_RULES.find(r=>r.includes(g))||[]).find(x=>x!==g); const list=w.ex.filter(x=>x.id!==e.id&&!x.ss).sort((a,b)=>(EX[b.exId]?.g===pairG)-(EX[a.exId]?.g===pairG));
+    body=`<h2>Суперсерия с «${esc(exName(e.exId))}»</h2><p class="small muted" style="margin:0">${pairG?`По твоей схеме ${g.toLowerCase()} идёт в паре с группой «${pairG}» — такие упражнения наверху.`:"Выбери второе упражнение из этой тренировки."}</p>
+     ${list.length?list.map(x=>{const hit=EX[x.exId]?.g===pairG; return `<button class="pick" data-a="doSs" data-ex="${x.id}"><span>${esc(exName(x.exId))}</span><span class="small" style="color:${hit?"var(--accent)":"var(--muted)"}">${EX[x.exId]?.g||""}</span></button>`}).join(""):'<div class="empty">Свободных упражнений нет. Сначала добавь второе упражнение в тренировку.</div>'}` }
   else if(sh.type==="delW"){ body=`<h2>Удалить тренировку?</h2><p class="muted" style="margin:0">Подходы и веса этой тренировки пропадут из истории и статистики.</p><div class="row"><button class="grow" data-a="sheetClose">Оставить</button><button class="grow btn-danger" data-a="delW">Удалить</button></div>` }
   else if(sh.type==="saveProg"){ body=`<h2>Сохранить как программу</h2><input id="prog-name" placeholder="Название, например «Верх тела»" value="${esc(sh.name||"")}" data-i="progName"><button class="btn-primary" data-a="doSaveProg">Сохранить</button>` }
   el.innerHTML=`<div class="sheet-bg" data-a="sheetBg"><div class="sheet" role="dialog" aria-modal="true"><div class="row between"><span></span><button class="icon-btn" data-a="sheetClose" aria-label="Закрыть">×</button></div>${body}</div></div>`;
@@ -713,12 +725,19 @@ let wakeLock=null; async function keepAwake(){ try{ wakeLock=await navigator.wak
 /* ---------- действия ---------- */
 function toast(t){ const d=document.createElement("div"); d.className="toast"; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),3200) }
 function findEx(d){ const w=S.workouts[d.id]; return [w,w?.ex.find(e=>e.id===d.e)] }
+const SS_RULES=[["Грудь","Спина"],["Плечи","Ноги"],["Бицепс","Трицепс"]];
+function partner(w,e){ return e.ss?w.ex.find(x=>x.ss===e.ss&&x.id!==e.id):null }
+function orderPairs(w){ const out=[],seen=new Set(); for(const e of w.ex){ if(seen.has(e.id)) continue; out.push(e); seen.add(e.id); const p=partner(w,e); if(p&&!seen.has(p.id)){ out.push(p); seen.add(p.id) } } w.ex=out }
+// Пары по схеме: грудь+спина, плечи+ноги, бицепс+трицепс. Из ног берём последнее упражнение, чтобы пара шла после остальных ног.
+function autoPair(w){ const free=g=>w.ex.filter(e=>!e.ss&&EX[e.exId]?.g===g);
+  for(const [a,b] of SS_RULES){ const A=free(a)[0], Bs=free(b), B=b==="Ноги"?Bs[Bs.length-1]:Bs[0]; if(A&&B){ const sid="s"+uid(); A.ss=sid; B.ss=sid } }
+  orderPairs(w) }
 function newWorkout(title,programId,items){
   const id="w"+Date.now().toString(36); const w={date:todayKey(),title,programId:programId||null,startedAt:Date.now(),finishedAt:null,warmup:false,stretch:false,cardio:{type:"",min:15,done:false},note:"",ex:[]};
   S.workouts[id]=w; for(const it of items) w.ex.push(makeEx(id,it)); save("workouts",id); UI.openWorkout=id; UI.tab="train"; keepAwake(); scrollTo(0,0);
 }
 function makeEx(wid,it){ const prev=prevFor(it.ex,wid); const n=it.sets||4;
-  return {id:uid(),exId:it.ex,target:it.reps||"",rest:it.rest||120,alt:it.alt||[],note:it.note||"",sets:[...Array(n)].map((_,j)=>({w:prev?.sets[j]?.w??prev?.sets[prev.sets.length-1]?.w??(workUnit(it.ex)==="кг"?workCur(it.ex):null)??"",r:"",done:false}))} }
+  return {id:uid(),exId:it.ex,target:it.reps||"",rest:it.rest||120,alt:it.alt||[],note:it.note||"",...(it.ss?{ss:it.ss}:{}),sets:[...Array(n)].map((_,j)=>({w:prev?.sets[j]?.w??prev?.sets[prev.sets.length-1]?.w??(workUnit(it.ex)==="кг"?workCur(it.ex):null)??"",r:"",done:false}))} }
 const ACT={
   tab:d=>{UI.tab=d.v; if(d.v!=="more")UI.more=null; if(d.v==="train")UI.openWorkout=null; scrollTo(0,0)},
   go:d=>{UI.tab=d.v; UI.more=d.m||null; scrollTo(0,0)},
@@ -745,7 +764,8 @@ const ACT={
   rtag:d=>{UI.recipeTag=d.v},
   setTarget:()=>{const r=mifflin(settings().profile); if(r){settings().target={kcal:r.kcal,p:r.p,f:r.f,c:r.c}; save("meta","settings"); toast("Норма сохранена")}},
   startP:d=>{ if(activeWorkout()){ UI.openWorkout=activeWorkout(); UI.tab="train"; toast("Сначала заверши текущую тренировку"); return }
-    const p=PROGRAMS.find(p=>p.id===d.id)||(settings().customPrograms||[]).find(p=>p.id===d.id); newWorkout(p.n,p.id,p.items)},
+    const p=PROGRAMS.find(p=>p.id===d.id)||(settings().customPrograms||[]).find(p=>p.id===d.id); newWorkout(p.n,p.id,p.items);
+    const w=S.workouts[UI.openWorkout]; if(settings().supersets&&!w.ex.some(e=>e.ss)){ autoPair(w); save("workouts",UI.openWorkout) }},
   startEmpty:()=>{ if(activeWorkout()){UI.openWorkout=activeWorkout();UI.tab="train";return} newWorkout("Своя тренировка",null,[]); UI.sheet={type:"pick"} },
   openW:d=>{UI.openWorkout=d.id; UI.tab="train"; scrollTo(0,0)},
   closeW:()=>{UI.openWorkout=null; scrollTo(0,0)},
@@ -757,11 +777,16 @@ const ACT={
   cardio:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.type=d.v; save("workouts",d.id)},
   cardioDone:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.done=!w.cardio.done; save("workouts",d.id)},
   setDone:d=>{const [w,e]=findEx(d); const s=e.sets[+d.j]; s.done=!s.done; if(s.done&&!s.w){const p=document.getElementById(`w-${e.id}-${d.j}`)?.placeholder; if(p) s.w=p} if(s.done&&!s.r){const p=document.getElementById(`r-${e.id}-${d.j}`)?.placeholder; if(p) s.r=p}
-    save("workouts",d.id); if(s.done&&!w.finishedAt) startRest(e.rest||120)},
+    save("workouts",d.id); if(s.done&&!w.finishedAt){ const p=partner(w,e); if(p&&w.ex.indexOf(e)<w.ex.indexOf(p)) toast("Без отдыха → "+exName(p.exId)); else startRest(p?Math.max(e.rest||120,p.rest||120):(e.rest||120)) }},
   addSet:d=>{const [,e]=findEx(d); const l=e.sets[e.sets.length-1]; e.sets.push({w:l?.w??"",r:"",done:false}); save("workouts",d.id)},
   delSet:d=>{const [,e]=findEx(d); if(e.sets.length>1){e.sets.pop(); save("workouts",d.id)}},
-  delEx:d=>{const w=S.workouts[d.id]; w.ex=w.ex.filter(e=>e.id!==d.e); save("workouts",d.id)},
-  moveEx:d=>{const w=S.workouts[d.id]; const i=w.ex.findIndex(e=>e.id===d.e), j=i+(+d.v); if(j<0||j>=w.ex.length) return; [w.ex[i],w.ex[j]]=[w.ex[j],w.ex[i]]; save("workouts",d.id)},
+  delEx:d=>{const w=S.workouts[d.id]; const e=w.ex.find(x=>x.id===d.e); if(e?.ss) w.ex.forEach(x=>{ if(x.ss===e.ss) delete x.ss }); w.ex=w.ex.filter(x=>x.id!==d.e); save("workouts",d.id)},
+  moveEx:d=>{const w=S.workouts[d.id]; const blocks=[]; for(const e of w.ex){ const last=blocks[blocks.length-1]; if(last&&e.ss&&last[0].ss===e.ss) last.push(e); else blocks.push([e]) }
+    const i=blocks.findIndex(b=>b.some(e=>e.id===d.e)), j=i+(+d.v); if(j<0||j>=blocks.length) return; [blocks[i],blocks[j]]=[blocks[j],blocks[i]]; w.ex=blocks.flat(); save("workouts",d.id)},
+  ssToggle:()=>{const st=settings(); st.supersets=!st.supersets; save("meta","settings")},
+  ssBreak:d=>{const w=S.workouts[d.id]; const e=w.ex.find(x=>x.id===d.e); if(!e?.ss) return; const sid=e.ss; w.ex.forEach(x=>{ if(x.ss===sid) delete x.ss }); save("workouts",d.id)},
+  doSs:d=>{const id=UI.openWorkout||activeWorkout(); const w=S.workouts[id]; const e=w.ex.find(x=>x.id===UI.sheet.e), p=w.ex.find(x=>x.id===d.ex); if(!e||!p) return;
+    const sid="s"+uid(); e.ss=sid; p.ss=sid; w.ex=w.ex.filter(x=>x!==p); w.ex.splice(w.ex.indexOf(e)+1,0,p); save("workouts",id); UI.sheet=null},
   sheet:d=>{UI.sheet={type:d.v,ex:d.ex,e:d.e}},
   sheetClose:()=>{UI.sheet=null}, sheetBg:(d,t,ev)=>{ if(ev.target===t) UI.sheet=null; else return false },
   doPick:d=>{const id=UI.openWorkout||activeWorkout(); const w=S.workouts[id]; w.ex.push(makeEx(id,{ex:d.ex,...(EX[d.ex].def||{sets:3,reps:EX[d.ex].bw?"до отказа":"8–12",rest:120})})); save("workouts",id); UI.sheet=null},
@@ -770,7 +795,7 @@ const ACT={
   delW:()=>{const id=UI.openWorkout||activeWorkout(); remove("workouts",id); UI.openWorkout=null; UI.sheet=null; rest.end=0},
   saveProg:d=>{UI.sheet={type:"saveProg",wid:d.id,name:S.workouts[d.id].title}},
   doSaveProg:()=>{const w=S.workouts[UI.sheet.wid]; const n=(document.getElementById("prog-name")?.value||"").trim()||w.title; const s=settings(); s.customPrograms=s.customPrograms||[];
-    s.customPrograms.push({id:"P"+uid(),n,scheme:"своя",items:w.ex.map(e=>({ex:e.exId,sets:e.sets.length,reps:e.target,rest:e.rest,alt:e.alt}))}); save("meta","settings"); UI.sheet=null; toast("Программа сохранена")},
+    s.customPrograms.push({id:"P"+uid(),n,scheme:"своя",items:w.ex.map(e=>({ex:e.exId,sets:e.sets.length,reps:e.target,rest:e.rest,alt:e.alt,...(e.ss?{ss:e.ss}:{})}))}); save("meta","settings"); UI.sheet=null; toast("Программа сохранена")},
   delProg:d=>{const s=settings(); s.customPrograms=s.customPrograms.filter(p=>p.id!==d.id); save("meta","settings")},
   addWork:d=>{const v=num(document.getElementById("work-in")?.value); if(!v){toast("Впиши число");return} const it=working().items[d.ex]||(working().items[d.ex]={h:[],u:EX[d.ex]?.bw?"повт.":"кг"}); it.h.push(v); save("meta","working")},
   undoWork:d=>{const it=working().items[d.ex]; if(it?.h.length){ it.h.pop(); save("meta","working") }},
