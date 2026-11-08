@@ -145,10 +145,6 @@ svg.chart text{fill:var(--muted);font-size:10px;font-family:var(--f-body)}
 .photos img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px;background:var(--surface2)}
 .thumbs{display:flex;gap:6px;overflow-x:auto}
 .thumbs img{width:64px;height:84px;object-fit:cover;border-radius:8px;flex:none}
-.chat{display:flex;flex-direction:column;gap:8px}
-.msg{padding:10px 12px;border-radius:12px;max-width:88%;white-space:pre-wrap;overflow-wrap:anywhere}
-.msg.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
-.msg.ai{align-self:flex-start;background:var(--surface)}
 details.art{background:var(--surface);border-radius:12px;padding:12px 14px}
 details.art summary{cursor:pointer;font-weight:600}
 details.art p,details.art li{color:var(--ink);max-width:65ch}
@@ -311,7 +307,7 @@ const MOODS=["😫","🙁","😐","🙂","😄"];
 const S={meta:{},weeks:{},workouts:{},body:{}};
 const COLLS=["meta","weeks","workouts","body"];
 const DEFAULT_SETTINGS={habits:[{id:"h1",name:"Витамины"},{id:"h2",name:"Вести КБЖУ"}],target:null,profile:{sex:"m",age:"",height:"",weight:"",activity:1.55,goal:"keep"},customPrograms:[],theme:""};
-const Store={mode:"loading",db:null,assets:null,downloads:null,sample:null,pending:new Map(),loaded:new Set()};
+const Store={mode:"loading",db:null,assets:null,downloads:null,pending:new Map(),loaded:new Set()};
 function settings(){ if(!S.meta.settings) S.meta.settings=structuredClone(DEFAULT_SETTINGS); return S.meta.settings }
 // Привычка из нескольких блоков: отметки блоков в d.hp[id], сама привычка закрыта, когда отмечены все
 const hParts=h=>Math.max(1,h.parts||1);
@@ -347,7 +343,7 @@ function saveDay(k){ save("weeks",weekKey(k)) }
 
 /* ---------- состояние интерфейса ---------- */
 const TABS=[["today","Сегодня",'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>'],["week","Планер",'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'],["train","Тренировка",'<path d="M2 12h20M5 8v8M8 6v12M16 6v12M19 8v8"/>'],["progress","Прогресс",'<path d="M4 19l5-6 4 3 7-9"/><path d="M15 7h5v5"/>'],["more","Ещё",'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>']];
-const UI={tab:"today",day:todayKey(),weekOff:0,openWorkout:null,sheet:null,period:"month",progEx:null,bodyMetric:"weight",more:null,recipeTag:"",rsel:{},chat:[],chatBusy:false,editHabits:false,addToDay:null};
+const UI={tab:"today",day:todayKey(),weekOff:0,openWorkout:null,sheet:null,period:"month",progEx:null,bodyMetric:"weight",more:null,recipeTag:"",rsel:{},editHabits:false,addToDay:null};
 let rest={end:0,total:0,timer:null};
 let audioCtx=null;
 
@@ -647,10 +643,9 @@ function vBody(){
 /* --- Ещё --- */
 function vMore(){
   const m=UI.more; const back=`<button class="btn-ghost" style="align-self:flex-start;padding-left:0" data-a="more" data-v="">‹ Ещё</button>`;
-  if(m==="food") return back+vFood(); if(m==="recipes") return back+vRecipes(); if(m==="kb") return back+vKB(); if(m==="coach") return back+vCoach(); if(m==="settings") return back+vSettings(); if(m==="library") return back+vLibrary();
+  if(m==="food") return back+vFood(); if(m==="recipes") return back+vRecipes(); if(m==="kb") return back+vKB(); if(m==="settings") return back+vSettings(); if(m==="library") return back+vLibrary();
   const it=(v,t,d)=>`<button class="pick" data-a="more" data-v="${v}"><span><b>${t}</b><br><span class="small muted">${d}</span></span><span class="muted">›</span></button>`;
   return `<header><div class="eyebrow">Ещё</div><h1>Инструменты</h1></header><div class="menu">
-   ${it("coach","Тренер — спроси ИИ","Техника, питание, что поменять в программе. Видит твои тренировки и дни.")}
    ${it("food","Питание и КБЖУ","Расчёт дневной нормы калорий, белков, жиров и углеводов")}
    ${it("recipes","Рецепты","Твои блюда на завтрак, обед и ужин с КБЖУ")}
    ${it("library","Упражнения","Все упражнения из FullBody с подсказками по технике")}
@@ -706,13 +701,6 @@ function vRecipes(){
 }
 function vKB(){ return `<header><div class="eyebrow">База знаний</div><h1>Коротко о главном</h1></header>${ARTICLES.map(a=>`<details class="art"><summary>${a.n}</summary><ul>${a.b.map(x=>`<li>${x}</li>`).join("")}</ul></details>`).join("")}` }
 function vLibrary(){ return `<header><div class="eyebrow">Справочник</div><h1>Упражнения</h1></header>${GROUPS.map(g=>`<section class="card"><h2>${g}</h2>${Object.entries(EX).filter(([,e])=>e.g===g&&!e.archived).map(([id,e])=>`<button class="pick" data-a="sheet" data-v="info" data-ex="${id}"><span>${e.n}${e.bw?' <span class="chip">свой вес</span>':""}</span><span class="muted">›</span></button>`).join("")}</section>`).join("")}` }
-function vCoach(){
-  return `<header><div class="eyebrow">Тренер</div><h1>Спроси ИИ</h1></header>
-  ${Store.sample?"":`<div class="banner">ИИ-тренер работает, когда приложение открыто на claude.ai.</div>`}
-  <div class="chat">${UI.chat.length?UI.chat.map(m=>`<div class="msg ${m.role==="user"?"me":"ai"}">${esc(m.text)}</div>`).join(""):`<div class="empty">Тренер видит твои последние тренировки, веса, сон и КБЖУ. Например: «Пора прибавлять вес в жиме ногами?», «Чем заменить брусья?», «Что съесть после тренировки?»</div>`}</div>
-  <div class="row">${["Где пора прибавить вес?","Разбери мою прошлую тренировку","Что поесть до тренировки?"].map(q=>`<button class="chip" data-a="ask" data-v="${q}">${q}</button>`).join("")}</div>
-  <div class="add"><textarea id="coach-q" placeholder="Твой вопрос" style="min-height:44px"></textarea><button class="btn-primary" data-a="ask" ${UI.chatBusy||!Store.sample?"disabled":""}>${UI.chatBusy?"…":"Спросить"}</button></div>`;
-}
 // Данные отчёта: по тренировке из истории или пример, если тренировок ещё нет
 function reportData(w,id){ const B=bests(id); const rows=[];
   for(const e of w.ex){ const ds=doneSets(e); if(!ds.length) continue; const prs=ds.filter(x=>isPR(e.exId,x,B[e.exId])).length; const prev=prevFor(e.exId,id); const c=topOf(e.exId,ds), pv=prev?topOf(e.exId,prev.sets):null;
@@ -1031,24 +1019,7 @@ const ACT={
   export:async()=>{ const fn="kalashnikov-"+todayKey()+".json", data=JSON.stringify({meta:S.meta,weeks:S.weeks,workouts:S.workouts,body:S.body},null,1);
     if(!Store.downloads){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type:"application/json"})); a.download=fn; document.body.appendChild(a); a.click(); a.remove(); return false }
     try{ await Store.downloads.save({filename:fn,data}) }catch(e){ if(e?.code!=="declined"&&e?.code!=="cancelled") toast("Не удалось сохранить файл") } return false },
-  ask:async d=>{ const q=d.v||document.getElementById("coach-q")?.value.trim(); if(!q||UI.chatBusy||!Store.sample) return false; const ta=document.getElementById("coach-q"); if(ta) ta.value="";
-    UI.chat.push({role:"user",text:q}); const ans={role:"ai",text:"Думаю…"}; UI.chat.push(ans); UI.chatBusy=true; render();
-    try{ const r=await Store.sample(coachPrompt(q),{cache:false,onText:({text})=>{ans.text=text; scheduleRender()}}); ans.text=r.text }
-    catch(e){ ans.text=e?.code==="not_granted"?"Нужно разрешение на вопросы к Claude. Разреши его в окне, которое появится при следующем вопросе.":e?.code==="rate_limited"?"Слишком много вопросов подряд. Подожди минуту и спроси снова.":"Не получилось ответить: "+(e?.message||"ошибка") }
-    UI.chatBusy=false; render(); return false },
 };
-function coachPrompt(q){
-  const s=settings(); const last=finished().slice(-6).map(w=>({дата:w.date,тренировка:w.title,упражнения:w.ex.map(e=>({название:exName(e.exId),цель:e.sets.length+"×"+e.target,подходы:doneSets(e).map(x=>`${x.w||0}кг×${x.r||"?"}`).join(", ")}))}));
-  const days=[...Array(7)].map((_,i)=>{const k=ymd(addDays(new Date(),-i)); const d=peekDay(k); return d?{дата:k,сон:d.sleep||null,энергия:d.energy||null,настроение:d.mood||null,ккал:(d.food||[]).reduce((a,f)=>a+num(f.k),0),белок:(d.food||[]).reduce((a,f)=>a+num(f.p),0)}:null}).filter(Boolean);
-  const hist=UI.chat.slice(0,-2).slice(-8).map(m=>(m.role==="user"?"Я: ":"Тренер: ")+m.text).join("\n");
-  return `Ты — личный тренер по силовым тренировкам и питанию. Отвечай по-русски, коротко и по делу (до 150 слов), с конкретными цифрами там, где они есть в данных. Если вопрос про технику — дай 3–4 ключевых подсказки. Не ставь диагнозы; при боли советуй обратиться к врачу.
-Программы пользователя: FullBody A/B/C — 4 подхода, 6–15 повторов, отдых 2–3 мин, разминка 10 мин эллипс, кардио 15 мин с пульсом до 150.
-Норма КБЖУ: ${s.target?JSON.stringify(s.target):"не рассчитана"}. Профиль: ${JSON.stringify(s.profile)}.
-Последние тренировки: ${JSON.stringify(last)}
-Последние дни: ${JSON.stringify(days)}
-${hist?"Переписка до этого:\n"+hist+"\n":""}
-Вопрос: ${q}`;
-}
 const CHG={
   sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day)},
   cardioMin:(d,t)=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.min=num(t.value); save("workouts",d.id)},
@@ -1087,7 +1058,7 @@ async function boot(){
   if(user){ let own=true; try{ own=await user.isOwner() }catch(e){} if(!own){ Store.mode="locked"; $("#tabs").innerHTML=""; $("#app").innerHTML='<div class="lock"><div class="stack"><h1>Личное приложение</h1><p class="muted">Это приложение работает только для своего владельца.</p></div></div>'; return } }
   if(db){
     Store.mode="db"; Store.db=db;
-    C.use("assets").then(a=>{Store.assets=a; scheduleRender()}); C.use("downloads").then(a=>{Store.downloads=a; scheduleRender()}); C.use("sample").then(a=>{Store.sample=a; scheduleRender()});
+    C.use("assets").then(a=>{Store.assets=a; scheduleRender()}); C.use("downloads").then(a=>{Store.downloads=a; scheduleRender()});
     setTimeout(()=>{ if(!Store.loaded.size) render() },2500);
     for(const c of COLLS){
       db.collection(c).onSnapshot(snap=>{ let ch=false;
