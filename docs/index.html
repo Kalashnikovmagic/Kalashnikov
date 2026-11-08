@@ -461,9 +461,9 @@ function vToday(){
   let train;
   if(act){ const w=S.workouts[act]; train=`<div class="row between"><div><div class="eyebrow">Идёт тренировка</div><h3>${esc(w.title)}</h3></div><button class="btn-primary" data-a="openW" data-id="${act}">Продолжить</button></div>` }
   else if(doneToday.length){ const w=doneToday[doneToday.length-1]; train=`<div class="row between"><div><div class="eyebrow">Тренировка сделана</div><h3>${esc(w.title)}</h3><div class="small muted">${wSets(w)} подходов · ${fmtN(wVolume(w)/1000)} т объёма</div></div><button data-a="openW" data-id="${w.id}">Открыть</button></div>` }
-  else train=`<div class="row" style="align-items:stretch"><span class="plate p-${np.id}"></span><div class="grow stack" style="gap:4px"><div class="eyebrow">Следующая по плану</div><h3>${np.n}</h3><div class="small muted">${np.scheme} · ${np.items.length} упражнений</div></div></div>
+  else train=`<div class="row" style="align-items:stretch"><span class="plate p-${np.id}"></span><div class="grow stack" style="gap:4px"><div class="eyebrow">Следующая по плану</div><h3>${esc(progName(np))}</h3><div class="small muted">${np.scheme} · ${np.items.length} упражнений</div></div></div>
     ${tired?`<div class="banner"><b>Плохо восстановился:</b> сон ${fmtSleep(d.sleep)}, энергия ${d.energy} из 5. Сделай на подход меньше и сними 10% веса — в дефиците это бережёт мышцы.</div>`:""}
-    <div class="row"><button class="btn-primary grow" data-a="startP" data-id="${np.id}"${tired?' data-light="1"':""}>${tired?"Начать облегчённую":"Начать"} ${np.n}</button>${PROGRAMS.filter(p=>p.id!==np.id).map(p=>`<button data-a="startP" data-id="${p.id}">${p.id}</button>`).join("")}</div>
+    <div class="row"><button class="btn-primary grow" data-a="startP" data-id="${np.id}"${tired?' data-light="1"':""}>${tired?"Начать облегчённую":"Начать"} ${esc(progName(np))}</button>${PROGRAMS.filter(p=>p.id!==np.id).map(p=>`<button data-a="startP" data-id="${p.id}">${p.id}</button>`).join("")}</div>
     ${tired?`<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="startP" data-id="${np.id}">Всё равно в полную силу</button>`:""}`;
   const t=settings().target; const food=d.food||[]; const sum=food.reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p),f:a.f+num(f.f),c:a.c+num(f.c)}),{k:0,p:0,f:0,c:0});
   const meter=(v,goal,l,u)=>`<div class="stack" style="gap:3px"><div class="row between small"><span>${l}</span><span class="num">${Math.round(v)}${goal?" / "+goal:""} ${u}</span></div>${goal?`<div class="meter ${v>goal*1.05?"over":""}"><i style="width:${Math.min(100,v/goal*100)}%"></i></div>`:""}</div>`;
@@ -524,17 +524,17 @@ function vTrain(){
   return `<header><div class="eyebrow">Тренировка</div><h1>Программы</h1></header>
   <section class="card"><div class="check ${settings().supersets?"":""}">${box(settings().supersets,'data-a="ssToggle" aria-label="Суперсерии"')}<span class="txt"><b>Суперсерии</b><br><span class="small muted">Грудь + спина, плечи + ноги, бицепс + трицепс. Пары соберутся сами, когда начнёшь программу. Связать вручную можно кнопкой «Суперсерия» у упражнения.</span></span></div></section>
   ${PROGRAMS.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-${p.id}"></span><div class="grow stack" style="gap:4px">
-    <div class="row between"><h2>${p.n}</h2>${p.id===np?'<span class="chip acc">следующая</span>':""}</div><div class="small muted">${p.src} · ${p.scheme}</div>
+    <div class="row between"><h2>${esc(progName(p))}</h2>${p.id===np?'<span class="chip acc">следующая</span>':""}</div><div class="small muted">${p.src} · ${p.scheme}</div>
     <div class="small">${p.items.map(i=>exName(i.ex)).join(" · ")}</div><div class="small muted">Разминка: 10 мин эллипс · Кардио 15 мин · Заминка</div></div></div>
-    <button class="${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}">Начать</button></section>`).join("")}
-  ${cps.length?`<h2>Свои программы</h2>${cps.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-X"></span><div class="grow"><h3>${esc(p.n)}</h3><div class="small muted">${p.items.map(i=>exName(i.ex)).join(" · ")}</div></div></div><div class="row"><button class="grow" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm btn-danger" data-a="delProg" data-id="${p.id}">Удалить</button></div></section>`).join("")}`:""}
+    <div class="row"><button class="grow ${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button></div></section>`).join("")}
+  ${cps.length?`<h2>Свои программы</h2>${cps.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-X"></span><div class="grow"><h3>${esc(p.n)}</h3><div class="small muted">${p.items.map(i=>exName(i.ex)).join(" · ")}</div></div></div><div class="row"><button class="grow" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button><button class="btn-sm btn-danger" data-a="delProg" data-id="${p.id}">Удалить</button></div></section>`).join("")}`:""}
   <button data-a="startEmpty">Пустая тренировка — набрать упражнения самому</button>
   <section class="card"><h2>История</h2>${hist.length?hist.slice(0,30).map(w=>`<button class="pick" data-a="openW" data-id="${w.id}"><span><b>${esc(w.title)}</b><br><span class="small muted">${fmtD(w.date)} · ${w.ex.length} упр. · ${wSets(w)} подх.${w.ex.some(e=>e.ss)?" · суперсерии":""}</span></span><span class="num">${fmtN(wVolume(w)/1000)} т</span></button>`).join(""):'<div class="empty">Здесь появятся завершённые тренировки</div>'}</section>`;
 }
 function vLogger(id){
   const w=S.workouts[id]; const fin=!!w.finishedAt; const el=fin?((w.finishedAt-(w.startedAt||w.finishedAt))/1000):((Date.now()-w.startedAt)/1000);
   const cardioSel=w.cardio?.type||"";
-  return `<header class="row between"><div class="grow"><div class="eyebrow">${fin?"Завершена · "+fmtD(w.date):"Идёт тренировка"}</div><h1>${esc(w.title)}</h1></div>
+  return `<header class="row between"><div class="grow"><div class="eyebrow">${fin?"Завершена · "+fmtD(w.date):"Идёт тренировка"}</div><h1>${esc(w.title)}</h1><button class="btn-ghost btn-sm" style="padding-left:0" data-a="renameOpen" data-k="w" data-id="${id}">Переименовать</button></div>
     <div class="stack" style="align-items:flex-end;gap:4px"><span class="num" style="font-size:22px" id="wk-el">${mmss(el)}</span>${fin?`<button class="btn-sm" data-a="closeW">К списку</button>`:""}</div></header>
   ${fin?`<div class="grid3"><div class="kpi"><span class="v">${wSets(w)}</span><span class="l">Подходов</span></div><div class="kpi"><span class="v">${fmtN(wVolume(w)/1000)}</span><span class="l">Объём, т</span></div><div class="kpi"><span class="v">${w.ex.filter(e=>doneSets(e).length).length}/${w.ex.length}</span><span class="l">Упражнений</span></div></div>`:""}
   <section class="card"><div class="check ${w.warmup?"done":""}">${box(w.warmup,`data-a="wFlag" data-id="${id}" data-f="warmup" aria-label="Разминка"`)}<span class="txt">Разминка: 10 минут эллипс</span></div></section>
@@ -728,7 +728,7 @@ async function reportImage(R){ try{ await Promise.all(['600 120px Oswald','500 4
   sp("8px"); g.fillStyle=LIME; g.font='600 32px "Golos Text",sans-serif'; g.fillText("KALASHNIKOV",P,y); sp("0px");
   g.fillStyle=MUTE; g.font='500 32px "Golos Text",sans-serif'; g.textAlign="right"; g.fillText(R.date,W-P,y); g.textAlign="left";
   // заголовок: до двух строк, при необходимости уменьшаем
-  let fs=132; const words=R.title.toUpperCase().split(" "); let lines;
+  let fs=132; const words=(/^тренировка/i.test(R.title)?R.title:"Тренировка "+R.title).toUpperCase().split(" "); let lines;
   for(;fs>=80;fs-=8){ g.font=`600 ${fs}px Oswald,Impact,sans-serif`; lines=[]; let cur=""; for(const wd of words){ const t=cur?cur+" "+wd:wd; if(g.measureText(t).width>W-2*P&&cur){ lines.push(cur); cur=wd } else cur=t } lines.push(cur); if(lines.length<=2) break }
   y+=fs*1.05; g.fillStyle=BONE; for(const l of lines){ g.fillText(l,P,y); y+=fs*.98 } y+=10;
   if(R.prs){ g.font='600 34px "Golos Text",sans-serif'; const t=`★  ${R.prs} ${R.prs===1?"новый рекорд":R.prs<5?"новых рекорда":"новых рекордов"}`; const tw=g.measureText(t).width+56; rr(P,y,tw,70,35); g.fillStyle=LIME; g.fill(); g.fillStyle="#050505"; g.fillText(t,P+28,y+47); y+=110 } else y+=30;
@@ -746,7 +746,7 @@ async function reportImage(R){ try{ await Promise.all(['600 120px Oswald','500 4
     g.fillStyle=r.pr?LIME:BONE; g.font=`600 ${nameF}px "Golos Text",sans-serif`; g.fillText(fit((r.pr?"★ ":"")+r.n,right-x-dw-24),x,top+rowH*.44);
     g.fillStyle=MUTE; g.font=`500 ${setF}px Oswald,Impact,sans-serif`; g.fillText(fit(r.sets,right-x),x,top+rowH*.80) });
   if(!R.rows.length){ g.fillStyle=MUTE; g.font='500 36px "Golos Text",sans-serif'; g.fillText("Подходы не отмечены",P+36,listTop+80) }
-  g.fillStyle=MUTE; g.font='500 28px "Golos Text",sans-serif'; g.fillText(R.prs?"★ — личный рекорд":"Отчёт о тренировке",P,H-100); g.textAlign="right"; g.fillStyle=LIME; g.fillText("KALASHNIKOV",W-P,H-100); g.textAlign="left";
+  g.fillStyle=MUTE; g.font='500 28px "Golos Text",sans-serif'; g.fillText(R.prs?"★ — личный рекорд":"Отчёт о тренировке",P,H-100);
   return new Promise(res=>c.toBlob(res,"image/png")) }
 async function tgPhoto(blob,caption){ const t=TG.get(); if(!t.token||!t.chat) return false; try{ const fd=new FormData(); fd.append("chat_id",t.chat); fd.append("caption",caption||""); fd.append("photo",blob,"kalashnikov-report.png");
   return (await (await fetch("https://api.telegram.org/bot"+t.token+"/sendPhoto",{method:"POST",body:fd})).json()).ok }catch(e){ return false } }
@@ -822,6 +822,10 @@ function renderSheet(){
   else if(sh.type==="report"){ const t=TG.get(); body=`<h2>Отчёт для сториз</h2>${sh.url?`<img src="${sh.url}" alt="Отчёт о тренировке" style="width:100%;max-width:360px;align-self:center;border-radius:14px;border:1px solid var(--line)">`:'<div class="empty">Рисую картинку…</div>'}
      <p class="small muted" style="margin:0">1080 × 1920, формат сториз. Чтобы сохранить на телефон, зажми картинку → «Сохранить в Фото».</p>
      ${t.token&&t.chat?`<button class="btn-primary" data-a="reportSend">Отправить в Telegram</button>`:'<p class="small" style="margin:0">Подключи бота в «Настройках», чтобы отправлять отчёт в Telegram.</p>'}` }
+  else if(sh.type==="rename"){ body=`<h2>${sh.k==="w"?"Название тренировки":"Название программы"}</h2>
+     <input id="rename-in" value="${esc(sh.name||"")}" data-i="renameIn" autocomplete="off" maxlength="60">
+     <p class="small muted" style="margin:0">${sh.k==="w"?"Меняется только эта тренировка: в истории, в отчёте и в Telegram.":"Новое название будет у следующих тренировок по этой программе. Уже сделанные останутся со старым."}</p>
+     <div class="row"><button class="grow btn-primary" data-a="renameSave">Сохранить</button>${sh.k==="p"&&PROGRAMS.some(x=>x.id===sh.id)&&settings().progNames?.[sh.id]?`<button data-a="renameReset">Вернуть исходное</button>`:""}</div>` }
   else if(sh.type==="delW"){ body=`<h2>Удалить тренировку?</h2><p class="muted" style="margin:0">Подходы и веса этой тренировки пропадут из истории и статистики.</p><div class="row"><button class="grow" data-a="sheetClose">Оставить</button><button class="grow btn-danger" data-a="delW">Удалить</button></div>` }
   else if(sh.type==="saveProg"){ body=`<h2>Сохранить как программу</h2><input id="prog-name" placeholder="Название, например «Верх тела»" value="${esc(sh.name||"")}" data-i="progName"><button class="btn-primary" data-a="doSaveProg">Сохранить</button>` }
   el.innerHTML=`<div class="sheet-bg" data-a="sheetBg"><div class="sheet" role="dialog" aria-modal="true"><div class="row between"><span></span><button class="icon-btn" data-a="sheetClose" aria-label="Закрыть">×</button></div>${body}</div></div>`;
@@ -855,6 +859,7 @@ function orderPairs(w){ const out=[],seen=new Set(); for(const e of w.ex){ if(se
 function autoPair(w){ const free=g=>w.ex.filter(e=>!e.ss&&EX[e.exId]?.g===g);
   for(const [a,b] of SS_RULES){ const A=free(a)[0], Bs=free(b), B=b==="Ноги"?Bs[Bs.length-1]:Bs[0]; if(A&&B){ const sid="s"+uid(); A.ss=sid; B.ss=sid } }
   orderPairs(w) }
+const progName=p=>settings().progNames?.[p.id]||p.n;
 function newWorkout(title,programId,items){
   const id="w"+Date.now().toString(36); const w={date:todayKey(),title,programId:programId||null,startedAt:Date.now(),finishedAt:null,warmup:false,stretch:false,cardio:{type:"",min:15,done:false},note:"",ex:[]};
   S.workouts[id]=w; for(const it of items) w.ex.push(makeEx(id,it)); save("workouts",id); UI.openWorkout=id; UI.tab="train"; keepAwake(); scrollTo(0,0);
@@ -888,7 +893,7 @@ const ACT={
   rtag:d=>{UI.recipeTag=d.v},
   setTarget:()=>{const r=mifflin(settings().profile); if(r){settings().target={kcal:r.kcal,p:r.p,f:r.f,c:r.c}; save("meta","settings"); toast("Норма сохранена")}},
   startP:d=>{ if(activeWorkout()){ UI.openWorkout=activeWorkout(); UI.tab="train"; toast("Сначала заверши текущую тренировку"); return }
-    const p=PROGRAMS.find(p=>p.id===d.id)||(settings().customPrograms||[]).find(p=>p.id===d.id); newWorkout(p.n+(d.light?" (облегчённая)":""),p.id,p.items);
+    const p=PROGRAMS.find(p=>p.id===d.id)||(settings().customPrograms||[]).find(p=>p.id===d.id); newWorkout(progName(p)+(d.light?" (облегчённая)":""),p.id,p.items);
     const w=S.workouts[UI.openWorkout]; if(settings().supersets&&!w.ex.some(e=>e.ss)) autoPair(w);
     if(d.light){ w.light=true; for(const e of w.ex){ delete e.hint; if(e.sets.length>2) e.sets.pop(); e.sets.forEach(x=>{ if(num(x.w)) x.w=String(Math.round(num(x.w)*0.9*2)/2) }) } }
     save("workouts",UI.openWorkout)},
@@ -947,6 +952,13 @@ const ACT={
   reportPreview:async d=>{ const w=d.id?S.workouts[d.id]:finished().slice(-1)[0]; const R=w?reportData(w,d.id||w.id):demoReport(); if(UI.sheet?.url) URL.revokeObjectURL(UI.sheet.url);
     UI.sheet={type:"report",R}; render(); const blob=await reportImage(R); UI.reportBlob=blob; UI.sheet={type:"report",R,url:URL.createObjectURL(blob)}; renderSheet(); return false },
   reportSend:async()=>{ if(!UI.reportBlob) return false; toast("Отправляю…"); const R=UI.sheet.R; const ok=await tgPhoto(UI.reportBlob,`${R.title} — ${R.date}`); toast(ok?"Отчёт отправлен в Telegram":"Не отправилось. Проверь интернет и бота."); return false },
+  renameOpen:d=>{ const name=d.k==="w"?S.workouts[d.id]?.title:progName(PROGRAMS.find(x=>x.id===d.id)||(settings().customPrograms||[]).find(x=>x.id===d.id)); UI.sheet={type:"rename",k:d.k,id:d.id,name};
+    setTimeout(()=>{ const el=document.getElementById("rename-in"); if(el){ el.focus(); el.select() } },50) },
+  renameSave:()=>{ const v=(document.getElementById("rename-in")?.value||"").trim(); if(!v){ toast("Название не может быть пустым"); return } const sh=UI.sheet;
+    if(sh.k==="w"){ S.workouts[sh.id].title=v; save("workouts",sh.id) }
+    else { const st=settings(); const cp=(st.customPrograms||[]).find(x=>x.id===sh.id); if(cp) cp.n=v; else st.progNames={...(st.progNames||{}),[sh.id]:v}; save("meta","settings") }
+    UI.sheet=null; toast("Название сохранено") },
+  renameReset:()=>{ const st=settings(); const pn={...(st.progNames||{})}; delete pn[UI.sheet.id]; st.progNames=pn; save("meta","settings"); UI.sheet=null },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
@@ -991,6 +1003,7 @@ const INP={
   setR:(d,t)=>{const [,e]=findEx(d); e.sets[+d.j].r=t.value; save("workouts",d.id); return false},
   pickQ:(d,t)=>{UI.sheet.q=t.value; renderSheet(); const el=document.getElementById("pick-q"); el.focus(); el.setSelectionRange(t.value.length,t.value.length); return false},
   progName:(d,t)=>{UI.sheet.name=t.value; return false},
+  renameIn:(d,t)=>{UI.sheet.name=t.value; return false},
 };
 document.addEventListener("click",ev=>{ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} }
   const t=ev.target.closest("[data-a]"); if(!t||t.disabled) return; const f=ACT[t.dataset.a]; if(!f) return; const r=f(t.dataset,t,ev); if(r!==false&&!(r instanceof Promise)) render() });
