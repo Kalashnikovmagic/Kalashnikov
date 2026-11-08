@@ -917,7 +917,7 @@ function vBody(){
    ${canPhoto()?`<div class="eyebrow">Фото «до и после»</div>
    ${photos.length>=2?`<div class="photos">${[photos[0],photos[photos.length-1]].map((p,j)=>`<figure><button style="padding:0;background:transparent" data-a="photoOpen" data-k="${p.k}" data-i="${p.i}" aria-label="Открыть фото ${fmtD(p.k)}"><img src="${photoSrc(p.id)}" alt="${j?"Последнее":"Первое"} фото"></button><figcaption class="small muted">${j?"После":"До"} · ${fmtD(p.k)}</figcaption></figure>`).join("")}</div>`:""}
    ${photos.length?`<div class="thumbs">${photos.map(p=>`<button style="padding:0;background:transparent;flex:none" data-a="photoOpen" data-k="${p.k}" data-i="${p.i}" aria-label="Открыть фото ${fmtD(p.k)}"><img src="${photoSrc(p.id)}" alt="Фото ${fmtD(p.k)}"></button>`).join("")}</div><p class="small muted" style="margin:0">Нажми на фото, чтобы открыть его или удалить.</p>`:'<div class="empty">Добавь первое фото — потом будет с чем сравнить</div>'}
-   <label class="btn" for="photo-in">Добавить фото за сегодня</label><input id="photo-in" type="file" accept="image/*" hidden data-c="photo">`:""}
+   <div class="row" style="flex-wrap:nowrap"><label class="field grow" style="max-width:170px">Дата фото<input id="photo-day" type="date" value="${UI.photoDay||tk}" max="${tk}" data-c="photoDay"></label><label class="btn grow" for="photo-in" style="align-self:flex-end">Добавить фото</label></div><input id="photo-in" type="file" accept="image/*" hidden data-c="photo">`:""}
   </section>`;
 }
 
@@ -1196,6 +1196,7 @@ function renderSheet(){
      ${tab==="man"?`<div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div><div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div><button class="btn-primary" data-a="addFood" data-day="${k}">Записать</button>`:""}` }
   else if(sh.type==="photo"){ const id=S.body[sh.k]?.photos?.[sh.i]; if(!id){ UI.sheet=null; el.innerHTML=""; return }
     body=`<h2>Фото · ${fmtD(sh.k)}</h2><img src="${photoSrc(id)}" alt="Фото ${fmtD(sh.k)}" style="width:100%;border-radius:14px">
+     <div class="row" style="flex-wrap:nowrap;align-items:flex-end"><label class="field grow">Дата фото<input id="photo-move" type="date" value="${sh.k}" max="${todayKey()}"></label><button data-a="photoMove">Сохранить дату</button></div>
      ${sh.confirm?`<p style="margin:0">Удалить это фото? Вернуть его будет нельзя${TG.get().chat?" (если оно не попало в резервную копию в Telegram)":""}.</p><div class="row"><button class="grow" data-a="photoNo">Оставить</button><button class="grow btn-danger" data-a="photoDel">Удалить</button></div>`
        :`<button class="btn-danger" data-a="photoAsk">Удалить фото</button>`}` }
   else if(sh.type==="rename"){ body=`<h2>${sh.k==="w"?"Название тренировки":"Название программы"}</h2>
@@ -1356,6 +1357,9 @@ const ACT={
   chestOpen:()=>{ const g=gm(); if(g.chests<=0) return; g.chests--; const r=rollChest(); save("meta","settings"); UI.sheet={type:"chest",reward:r}; GMC=null; setTimeout(()=>confetti(),100) },
   accentSet:d=>{ const g=gm(); if(!g.accents.includes(d.v)) return; g.accent=d.v; applyTheme(); save("meta","settings") },
   photoOpen:d=>{ UI.sheet={type:"photo",k:d.k,i:+d.i} },
+  photoMove:()=>{ const nk=document.getElementById("photo-move")?.value, {k,i}=UI.sheet; if(!nk||!/^\d{4}-\d{2}-\d{2}$/.test(nk)){ toast("Выбери дату"); return } if(nk>todayKey()){ toast("Дата не может быть в будущем"); return } if(nk===k) return;
+    const e=S.body[k]; if(!e?.photos) return; const [id]=e.photos.splice(i,1); if(!e.photos.length) delete e.photos; if(!Object.keys(e).length) delete S.body[k];
+    const ne=S.body[nk]||(S.body[nk]={}); ne.photos=[...(ne.photos||[]),id]; save("body",k); save("body",nk); UI.sheet={type:"photo",k:nk,i:ne.photos.length-1}; toast("Дата фото: "+fmtD(nk)) },
   photoAsk:()=>{ UI.sheet.confirm=true }, photoNo:()=>{ UI.sheet.confirm=false },
   photoDel:async()=>{ const {k,i}=UI.sheet, e=S.body[k]; if(!e?.photos) return; const [id]=e.photos.splice(i,1); if(!e.photos.length) delete e.photos;
     if(Store.assets&&id&&!id.startsWith("data:")){ try{ await Store.assets.delete(id) }catch(x){} } save("body",k); UI.sheet=null; toast("Фото удалено"); render(); return false },
@@ -1374,7 +1378,8 @@ const CHG={
   sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day)},
   cardioMin:(d,t)=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.min=num(t.value); save("workouts",d.id)},
   body:(d,t)=>{const k=todayKey(); const e=S.body[k]||(S.body[k]={}); if(t.value==="") delete e[d.v]; else e[d.v]=num(t.value); save("body",k)},
-  photo:async(d,t)=>{const f=t.files?.[0]; if(!f||!canPhoto()) return; toast("Загружаю фото…"); try{ const pid=Store.assets?(await Store.assets.upload(f)).id:await shrink(f); const k=todayKey(); const e=S.body[k]||(S.body[k]={}); e.photos=[...(e.photos||[]),pid]; save("body",k); render() }catch(e){ toast("Фото не загрузилось: "+(e?.message||"ошибка")) } t.value=""},
+  photoDay:(d,t)=>{ UI.photoDay=t.value||"" },
+  photo:async(d,t)=>{const f=t.files?.[0]; if(!f||!canPhoto()) return; toast("Загружаю фото…"); try{ const pid=Store.assets?(await Store.assets.upload(f)).id:await shrink(f); const k=UI.photoDay&&UI.photoDay<=todayKey()?UI.photoDay:todayKey(); const e=S.body[k]||(S.body[k]={}); e.photos=[...(e.photos||[]),pid]; save("body",k); render() }catch(e){ toast("Фото не загрузилось: "+(e?.message||"ошибка")) } t.value=""},
   import:async(d,t)=>{const f=t.files?.[0]; if(!f) return; try{ const j=JSON.parse(await f.text()); for(const c of COLLS){ for(const [id,v] of Object.entries(j[c]||{})){ S[c][id]=v; save(c,id) } } toast("Копия восстановлена"); render() }catch(e){ toast("Файл не подходит: нужна резервная копия из этого приложения") } t.value=""},
   "prof-sex":(d,t)=>{settings().profile.sex=t.value; save("meta","settings")}, "prof-age":(d,t)=>{settings().profile.age=t.value; save("meta","settings")},
   "prof-height":(d,t)=>{settings().profile.height=t.value; save("meta","settings")}, "prof-weight":(d,t)=>{settings().profile.weight=t.value; save("meta","settings")},
