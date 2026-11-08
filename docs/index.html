@@ -1117,29 +1117,31 @@ async function weekImage(D){ try{ await Promise.all(['600 120px Oswald','500 40p
 async function tgWeekly(force){ const t=TG.get(); if(!t.token||!t.chat||(!force&&(t.weekly===false||!t.on))) return false; const mon=ymd(addDays(monday(new Date()),-7));
   if(!force&&t.weeklyFor===mon) return false; const D=weekData(mon); if(!force&&!D.n&&!Object.keys(S.weeks).length) return false;
   const ok=await tgPhoto(await weekImage(D),"Итоги недели "+D.range); if(ok) TG.set({...TG.get(),weeklyFor:mon}); return ok }
-// Итоги тренировки на прозрачном фоне (1080×1920) — для наложения на видео. style: "panel" — тёмная полупрозрачная плашка, "clean" — только текст с тенью
+// Итоги тренировки для наложения на видео: широкая низкая плашка 1600 px на прозрачном фоне, по размеру содержимого.
+// Упражнения в две колонки. style: "panel" — тёмная полупрозрачная подложка, "clean" — только текст с тенью
 async function overlayImage(R,o){ try{ await Promise.all(['600 110px Oswald','500 40px "Golos Text"','600 40px "Golos Text"'].map(f=>document.fonts.load(f))) }catch(e){}
-  const W=1080,H=1920,c=document.createElement("canvas"); c.width=W; c.height=H; const g=c.getContext("2d"); const LIME="#D8FD3E",WHITE="#FFFFFF",SOFT="rgba(255,255,255,.78)",P=80, panel=o.style!=="clean";
+  const panel=o.style!=="clean", rows=R.rows.slice(0,8), more=R.rows.length-rows.length, perCol=Math.ceil(rows.length/2), rowH=68, PAD=56;
+  const W=1600, headH=150, kpiH=130, H=PAD+headH+kpiH+24+Math.max(1,perCol)*rowH+(more?44:0)+PAD-10;
+  const c=document.createElement("canvas"); c.width=W; c.height=H; const g=c.getContext("2d"); const LIME="#D8FD3E",WHITE="#FFFFFF",SOFT="rgba(255,255,255,.78)";
   const rr=(x,y,w,h,r)=>{ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath() };
   const fit=(t,max)=>{ if(g.measureText(t).width<=max) return t; while(t.length>1&&g.measureText(t+"…").width>max) t=t.slice(0,-1); return t+"…" };
-  const rows=R.rows.slice(0,6), more=R.rows.length-rows.length, rowH=80;
-  const blockH=110+30+150+30+rows.length*rowH+(more?50:0);
-  const top=o.pos==="top"?150:H-170-blockH;
-  if(panel){ rr(P-36,top-44,W-2*P+72,blockH+70,44); g.fillStyle="rgba(5,5,5,.62)"; g.fill() }
-  const shadow=on=>{ if(panel) return; g.shadowColor=on?"rgba(0,0,0,.75)":"transparent"; g.shadowBlur=on?22:0; g.shadowOffsetY=on?3:0 };
-  shadow(true); let y=top+30;
-  try{ g.letterSpacing="6px" }catch(e){} g.fillStyle=LIME; g.font='600 30px "Golos Text",sans-serif'; g.fillText("KALASHNIKOV",P,y); try{ g.letterSpacing="0px" }catch(e){}
-  g.fillStyle=SOFT; g.font='500 30px "Golos Text",sans-serif'; g.textAlign="right"; g.fillText(R.date,W-P,y); g.textAlign="left";
-  const title=(/^тренировка/i.test(R.title)?R.title:"Тренировка "+R.title).toUpperCase(); let fs=96; for(;fs>52;fs-=4){ g.font=`600 ${fs}px Oswald,Impact,sans-serif`; if(g.measureText(title).width<=W-2*P) break }
-  y+=fs+14; g.fillStyle=WHITE; g.fillText(fit(title,W-2*P),P,y); y+=30;
-  const cw=(W-2*P)/3; [[R.min,"минут"],[R.sets,"подходов"],[fmtN(R.vol),"тонн объём"]].forEach(([v,l],i)=>{ const x=P+i*cw; if(i){ shadow(false); g.fillStyle="rgba(216,253,62,.6)"; g.fillRect(x-1,y+18,3,112); shadow(true) }
-    g.fillStyle=WHITE; g.font='600 100px Oswald,Impact,sans-serif'; g.fillText(String(v),x+(i?26:0),y+108); g.fillStyle=SOFT; g.font='500 30px "Golos Text",sans-serif'; g.fillText(l,x+(i?26:0),y+146) });
-  y+=150+30;
-  rows.forEach(r=>{ const right=W-P; g.font='600 40px Oswald,Impact,sans-serif'; g.textAlign="right"; let rx=right;
-    if(r.delta){ g.fillStyle=r.up?LIME:SOFT; g.fillText(r.delta.replace(" повт.",""),rx,y+50); rx-=g.measureText(r.delta.replace(" повт.","")).width+22 }
-    const top2=r.top||String(r.sets).split("·")[0].trim(); g.fillStyle=WHITE; g.fillText(top2,rx,y+50); rx-=g.measureText(top2).width+28; g.textAlign="left";
-    g.fillStyle=r.pr?LIME:WHITE; g.font='600 38px "Golos Text",sans-serif'; g.fillText(fit((r.pr?"★ ":"")+r.n,rx-P),P,y+50); y+=rowH });
-  if(more){ g.fillStyle=SOFT; g.font='500 30px "Golos Text",sans-serif'; g.fillText(`и ещё ${more} ${plural(more,"упражнение","упражнения","упражнений")}`,P,y+34) }
+  if(panel){ rr(6,6,W-12,H-12,48); g.fillStyle="rgba(5,5,5,.62)"; g.fill() }
+  else { g.shadowColor="rgba(0,0,0,.75)"; g.shadowBlur=22; g.shadowOffsetY=3 }
+  const L=PAD+14, Rr=W-PAD-14; let y=PAD+30;
+  try{ g.letterSpacing="6px" }catch(e){} g.fillStyle=LIME; g.font='600 30px "Golos Text",sans-serif'; g.fillText("KALASHNIKOV",L,y); try{ g.letterSpacing="0px" }catch(e){}
+  g.fillStyle=SOFT; g.font='500 30px "Golos Text",sans-serif'; g.textAlign="right"; g.fillText(R.date,Rr,y); g.textAlign="left";
+  const title=(/^тренировка/i.test(R.title)?R.title:"Тренировка "+R.title).toUpperCase(); let fs=96; for(;fs>52;fs-=4){ g.font=`600 ${fs}px Oswald,Impact,sans-serif`; if(g.measureText(title).width<=Rr-L) break }
+  y+=fs+12; g.fillStyle=WHITE; g.fillText(fit(title,Rr-L),L,y);
+  y=PAD+headH; const cw=(Rr-L)/3;
+  [[R.min,"минут"],[R.sets,"подходов"],[fmtN(R.vol),"тонн объём"]].forEach(([v,l],i)=>{ const x=L+i*cw; const sh=g.shadowColor; if(i){ g.shadowColor="transparent"; g.fillStyle="rgba(216,253,62,.6)"; g.fillRect(x-1,y+10,3,100); g.shadowColor=sh }
+    const tx=x+(i?28:0); g.fillStyle=WHITE; g.font='600 92px Oswald,Impact,sans-serif'; g.fillText(String(v),tx,y+90); const vw=g.measureText(String(v)).width; g.fillStyle=SOFT; g.font='500 30px "Golos Text",sans-serif'; g.fillText(l,tx+vw+16,y+90) });
+  y+=kpiH+24; const colW=(Rr-L-60)/2;
+  rows.forEach((r,idx)=>{ const col=idx<perCol?0:1, ry=y+(idx%perCol)*rowH, x0=L+col*(colW+60), right=x0+colW;
+    g.font='600 38px Oswald,Impact,sans-serif'; g.textAlign="right"; let rx=right; const dl=r.delta?r.delta.replace(" повт.",""):"";
+    if(dl){ g.fillStyle=r.up?LIME:SOFT; g.fillText(dl,rx,ry+44); rx-=g.measureText(dl).width+18 }
+    const top2=r.top||String(r.sets).split("·")[0].trim(); g.fillStyle=WHITE; g.fillText(top2,rx,ry+44); rx-=g.measureText(top2).width+22; g.textAlign="left";
+    g.fillStyle=r.pr?LIME:WHITE; g.font='600 34px "Golos Text",sans-serif'; g.fillText(fit((r.pr?"★ ":"")+r.n,rx-x0),x0,ry+44) });
+  if(more){ g.fillStyle=SOFT; g.font='500 28px "Golos Text",sans-serif'; g.fillText(`и ещё ${more} ${plural(more,"упражнение","упражнения","упражнений")}`,L,y+perCol*rowH+30) }
   return new Promise(res=>c.toBlob(res,"image/png")) }
 // PNG документом — Telegram не пережимает его в JPEG и сохраняет прозрачность
 async function tgDoc(blob,name,caption){ const t=TG.get(); if(!t.token||!t.chat) return false; try{ const fd=new FormData(); fd.append("chat_id",t.chat); fd.append("caption",caption||""); fd.append("document",blob,name);
@@ -1209,7 +1211,7 @@ function countUp(root){ const els=[...root.querySelectorAll("[data-count]")]; co
   try{ if(matchMedia("(prefers-reduced-motion: reduce)").matches){ step(t0+dur); return } }catch(e){} requestAnimationFrame(step) }
 // Перерисовать картинку в окне отчёта под выбранный формат
 async function redrawReport(){ const sh=UI.sheet; if(!sh||sh.type!=="report"||!sh.R) return; if(sh.url) URL.revokeObjectURL(sh.url); sh.url=null; renderSheet();
-  const blob=sh.kind==="overlay"?await overlayImage(sh.R,{style:sh.ostyle||"panel",pos:sh.opos||"bottom"}):await reportImage(sh.R); if(UI.sheet!==sh) return; UI.reportBlob=blob; sh.url=URL.createObjectURL(blob); renderSheet() }
+  const blob=sh.kind==="overlay"?await overlayImage(sh.R,{style:sh.ostyle||"panel"}):await reportImage(sh.R); if(UI.sheet!==sh) return; UI.reportBlob=blob; sh.url=URL.createObjectURL(blob); renderSheet() }
 function renderSheet(){
   const sh=UI.sheet; const el=$("#sheet"); if(!sh){ el.innerHTML=""; return }
   let body="";
@@ -1235,9 +1237,9 @@ function renderSheet(){
      ${list.length?list.map(x=>{const hit=EX[x.exId]?.g===pairG; return `<button class="pick" data-a="doSs" data-ex="${x.id}"><span>${esc(exName(x.exId))}</span><span class="small" style="color:${hit?"var(--hl)":"var(--muted)"}">${EX[x.exId]?.g||""}</span></button>`}).join(""):'<div class="empty">Свободных упражнений нет. Сначала добавь второе упражнение в тренировку.</div>'}` }
   else if(sh.type==="report"){ const t=TG.get(), ov=sh.kind==="overlay"; body=`<h2>${esc(sh.title||(ov?"Итоги для видео":"Отчёт для сториз"))}</h2>
      ${sh.R&&!sh.title?segBar([["story","Картинка для сториз"],["overlay","PNG для видео"]],sh.kind||"story","reportKind","Формат"):""}
-     ${ov?`<div class="row">${segBar([["panel","С плашкой"],["clean","Только текст"]],sh.ostyle||"panel","reportOStyle","Фон")}${segBar([["bottom","Внизу"],["top","Вверху"]],sh.opos||"bottom","reportOPos","Положение")}</div>`:""}
-     ${sh.url?`<img src="${sh.url}" alt="Итоги тренировки" style="width:100%;max-width:360px;align-self:center;border-radius:14px;border:1px solid var(--line);${ov?"background:conic-gradient(#8a8a8a 25%,#c9c9c9 0 50%,#8a8a8a 0 75%,#c9c9c9 0) 0 0/24px 24px":""}">`:'<div class="empty">Рисую картинку…</div>'}
-     <p class="small muted" style="margin:0">${ov?"1080 × 1920, прозрачный фон: клетка на превью — это пустота. Наложи PNG на видео в CapCut, InShot или «Монтаже» как картинку поверх ролика.":"1080 × 1920, формат сториз. Чтобы сохранить на телефон, зажми картинку → «Сохранить в Фото»."}</p>
+     ${ov?segBar([["panel","С плашкой"],["clean","Только текст"]],sh.ostyle||"panel","reportOStyle","Фон"):""}
+     ${sh.url?`<img src="${sh.url}" alt="Итоги тренировки" style="width:100%;max-width:${ov?"100%":"360px"};align-self:center;border-radius:14px;border:1px solid var(--line);${ov?"background:conic-gradient(#8a8a8a 25%,#c9c9c9 0 50%,#8a8a8a 0 75%,#c9c9c9 0) 0 0/24px 24px":""}">`:'<div class="empty">Рисую картинку…</div>'}
+     <p class="small muted" style="margin:0">${ov?"Широкая плашка 1600 px по ширине, прозрачный фон: клетка на превью — это пустота. Наложи PNG поверх ролика в CapCut, InShot или «Монтаже», растяни по ширине кадра и поставь куда удобно.":"1080 × 1920, формат сториз. Чтобы сохранить на телефон, зажми картинку → «Сохранить в Фото»."}</p>
      <div class="row">${sh.url?`<button class="grow" data-a="reportSave">Скачать PNG</button>`:""}${t.token&&t.chat?`<button class="grow btn-primary" data-a="reportSend">${ov?"Файлом в Telegram":"Отправить в Telegram"}</button>`:""}</div>
      ${t.token&&t.chat?(ov?'<p class="small muted" style="margin:0">В Telegram PNG уходит файлом, чтобы не пропала прозрачность. Открой файл в чате → «Поделиться» → «Сохранить в Файлы».</p>':""):'<p class="small" style="margin:0">Подключи бота в «Настройках», чтобы отправлять отчёт в Telegram.</p>'}` }
   else if(sh.type==="ach"){ const a=ACH.find(x=>x.id===sh.ex), v=a.v(), t=tierOf(a,v);
@@ -1282,7 +1284,7 @@ function renderRest(){
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794160654";
+const APP_VER="1794160976";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
