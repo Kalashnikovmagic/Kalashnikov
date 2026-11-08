@@ -403,8 +403,8 @@ function peekDay(k){ return S.weeks[weekKey(k)]?.days?.[k] }
 function saveDay(k){ save("weeks",weekKey(k)) }
 
 /* ---------- состояние интерфейса ---------- */
-const TABS=[["today","Сегодня",'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>'],["week","Планер",'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'],["train","Тренировка",'<path d="M2 12h20M5 8v8M8 6v12M16 6v12M19 8v8"/>'],["progress","Прогресс",'<path d="M4 19l5-6 4 3 7-9"/><path d="M15 7h5v5"/>'],["more","Ещё",'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>']];
-const UI={tab:"today",day:todayKey(),weekOff:0,openWorkout:null,sheet:null,period:"month",progEx:null,bodyMetric:"weight",more:null,recipeTag:"",rsel:{},editHabits:false,addToDay:null};
+const TABS=[["today","Сегодня",'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>'],["train","Тренировка",'<path d="M2 12h20M5 8v8M8 6v12M16 6v12M19 8v8"/>'],["food","Питание",'<path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10"/><path d="M17 21V3c-2 1-3.5 3.4-3.5 6.5S15 14 17 14"/>'],["progress","Прогресс",'<path d="M4 19l5-6 4 3 7-9"/><path d="M15 7h5v5"/>'],["more","Ещё",'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>']];
+const UI={tab:"today",todayMode:"day",foodTab:"diary",progTab:"train",refTab:"lib",histAll:false,gameOpen:false,day:todayKey(),weekOff:0,openWorkout:null,sheet:null,period:"month",progEx:null,bodyMetric:"weight",more:null,recipeTag:"",rsel:{},editHabits:false,addToDay:null};
 let rest={end:0,total:0,timer:null};
 let audioCtx=null;
 
@@ -555,7 +555,7 @@ function vSkills(){ const G=groupScores(), n=GROUPS.length, R=95, cx=150, cy=125
   const labels=GROUPS.map((x,i)=>{ const [px,py]=pt(i,R+18); return `<text x="${px}" y="${py}" text-anchor="middle" dominant-baseline="middle">${x}</text><text class="lv" x="${px}" y="${py+13}" text-anchor="middle" dominant-baseline="middle">${G[x]?fmtN(Math.round(G[x].sc*10)/10):"—"}</text>` }).join("");
   const unit=s2=>s2.u==="reps"?" повт.":" кг";
   return `<section class="card"><h2>Навыки</h2>
-    ${!num(pr.age)||!num(pr.weight)?`<div class="banner">Для точного сравнения впиши возраст и вес в «Ещё» → «Питание». Сейчас взято: ${num(pr.age)||30} лет, ${num(pr.weight)||(lastBodyDate()?num(S.body[lastBodyDate()].weight):80)} кг.</div>`:""}
+    ${!num(pr.age)||!num(pr.weight)?`<div class="banner">Для точного сравнения впиши возраст и вес в «Ещё» → «Профиль». Сейчас взято: ${num(pr.age)||30} лет, ${num(pr.weight)||(lastBodyDate()?num(S.body[lastBodyDate()].weight):80)} кг.</div>`:""}
     <svg class="chart radar" viewBox="0 0 300 260" role="img" aria-label="Сила по группам мышц относительно мужчин твоего возраста и веса">${grid}${GROUPS.map((_,i)=>`<line x1="${cx}" y1="${cy}" x2="${pt(i,R)[0]}" y2="${pt(i,R)[1]}" stroke="var(--line)"/>`).join("")}<polygon points="${poly}" fill="var(--accent-soft)" stroke="var(--hl)" stroke-width="2"/>${labels}</svg>
     <p class="small muted" style="margin:0">Пунктир — «средний» уровень: сильнее половины мужчин твоего возраста и веса.</p>
     <div>${GROUPS.map(x=>{ const g2=G[x]; if(!g2) return `<div class="check small"><span class="txt"><b>${x}</b></span><span class="muted">нет упражнений с нормативом</span></div>`;
@@ -655,18 +655,22 @@ function checkGame(){ if(gmBusy||Store.mode==="locked") return; gmBusy=true; try
       for(const c of challengesFor(m)){ const key=m+":"+c.id; if(!g.chall[key]&&c.v(m)>=c.goal){ g.chall[key]=1; g.chests++; g.trophies.push({kind:"chall",title:`${c.n} · ${monthName(m)}`,date:t}); ch=true; celebrate({icon:"medal",title:"Испытание месяца!",sub:`${c.n}. +1 сундук`}) } } }
     for(const k of Object.keys(g.cel)) if(k<ymd(addDays(new Date(),-3))){ delete g.cel[k]; ch=true }
     if(ch) save("meta","settings") } finally{ gmBusy=false } }
-function vGame(k){ if(k!==todayKey()) return ""; const g=gm(), n=streakNow(), on=dayCounted(k), x=xpDay(k), X=xpTotal(), L=levelOf(X), Q=questsFor(k), qd=Q.filter(q=>q.done).length;
+function vGame(k){ if(k!==todayKey()) return ""; const g=gm(), n=streakNow(), on=dayCounted(k), x=xpDay(k), X=xpTotal(), L=levelOf(X);
   return `<section class="card game"><div class="row" style="flex-wrap:nowrap;gap:12px">
-      <button class="gm-streak ${on?"on":""}" data-a="go" data-v="more" data-m="ach" aria-label="Серия ${n} ${plural(n,"день","дня","дней")}">${goldWeek()?ICON.flame.replace('fill="var(--hl)"','fill="#E8B923"').replace('fill="var(--accent)"','fill="#FFE27A"'):ICON.flame}<span class="num">${n}</span></button>
-      <button class="grow stack" style="gap:5px;min-width:0;background:transparent;padding:0;align-items:stretch;text-align:left" data-a="go" data-v="more" data-m="ach">
+      <button class="gm-streak ${on?"on":""}" data-a="go" data-v="progress" data-m="game" aria-label="Серия ${n} ${plural(n,"день","дня","дней")}">${goldWeek()?ICON.flame.replace('fill="var(--hl)"','fill="#E8B923"').replace('fill="var(--accent)"','fill="#FFE27A"'):ICON.flame}<span class="num">${n}</span></button>
+      <button class="grow stack" style="gap:5px;min-width:0;background:transparent;padding:0;align-items:stretch;text-align:left" data-a="go" data-v="progress" data-m="game">
         <span class="row between small" style="flex-wrap:nowrap"><b>${esc(L.name)} · ур. ${L.n}</b><span class="muted num">${L.to?`${X} / ${L.to}`:X}</span></span>
         <span class="meter"><i style="width:${L.to?Math.min(100,(X-L.from)/(L.to-L.from)*100):100}%"></i></span>
         <span class="small muted">${g.freezes?`${ICON.snow.replace("<svg",'<svg class="ico-s"').repeat(g.freezes)} ${g.freezes} ${plural(g.freezes,"заморозка","заморозки","заморозок")}`:"Заморозок нет"}</span></button>
       <span aria-label="Опыт за сегодня ${x} из ${g.goal}">${ring(Math.min(1,x/g.goal),58,x)}</span></div>
       ${g.chests||g.double.includes(k)||goldenDay(k)?`<div class="row">${g.chests?`<button class="gm-chest" data-a="chestSheet">${ICON.chest} Сундук${g.chests>1?" ×"+g.chests:""} — открыть</button>`:""}${g.double.includes(k)?'<span class="chip up">Двойной опыт сегодня</span>':""}${goldenDay(k)?'<span class="chip gold">Золотой день</span>':""}</div>`:""}</section>
-    <section class="card"><div class="row between"><h2>Квесты дня</h2><span class="chip ${qd===3?"up":"acc"}">${qd}/3 · +30</span></div>
-      <div>${Q.map(q=>`<div class="check ${q.done?"done":""}"><span class="box" role="img" aria-checked="${q.done}" aria-label="${q.done?"выполнено":"не выполнено"}">${CHECK}</span><span class="txt">${q.t}</span></div>`).join("")}</div></section>
-    ${vBoss()}` }
+` }
+// Квесты и босс — одной свёрнутой карточкой внизу «Сегодня»
+function vGameDay(k){ if(k!==todayKey()) return ""; const Q=questsFor(k), qd=Q.filter(q=>q.done).length, wk=ymd(monday(new Date())), B=bossFor(wk), D=BOSSES.find(x=>x.id===B.type)||BOSSES[0], hp=B.beaten?0:Math.round(Math.max(0,B.target-D.calc(wk))/B.target*100);
+  return `<section class="card"><button class="row between" style="background:transparent;padding:0;width:100%;text-align:left;flex-wrap:nowrap;align-items:center" data-a="gameToggle" aria-expanded="${UI.gameOpen}">
+      <span><h2>Игра дня</h2><span class="small muted">Квесты ${qd}/3 · босс «${D.n}»: ${B.beaten?"повержен":"здоровье "+hp+"%"}</span></span><span class="muted" style="font-size:20px">${UI.gameOpen?"−":"+"}</span></button>
+    ${UI.gameOpen?`<div><div class="eyebrow">Квесты дня · +30 за все три</div>${Q.map(q=>`<div class="check ${q.done?"done":""}"><span class="box" role="img" aria-checked="${q.done}" aria-label="${q.done?"выполнено":"не выполнено"}">${CHECK}</span><span class="txt">${q.t}</span></div>`).join("")}</div>`:""}</section>
+    ${UI.gameOpen?vBoss():""}` }
 function goldWeek(){ return wkDays(ymd(monday(new Date()))).some(k=>k<=todayKey()&&goldenDay(k)) }
 function vAch(){ const g=gm(), X=xpTotal(), L=levelOf(X), n=streakNow(), best=bestStreak(), mon=monday(new Date()), wd=wdIdx(todayKey());
   let cur=0,prev=0; for(let i=0;i<=wd;i++){ cur+=xpDay(ymd(addDays(mon,i))); prev+=xpDay(ymd(addDays(mon,i-7))) }
@@ -741,7 +745,7 @@ function scheduleRender(){ if(renderQueued) return; renderQueued=true; requestAn
 function render(){
   if(Store.mode==="locked") return; GMC=null;
   const ae=document.activeElement; const fid=ae&&ae.id&&document.getElementById("app").contains(ae)?ae.id:null; let ss=null,se=null; try{ss=ae.selectionStart;se=ae.selectionEnd}catch(e){}
-  const v={today:vToday,week:vWeek,train:vTrain,progress:vProgress,more:vMore}[UI.tab]();
+  const v=({today:vTodayTab,train:vTrain,food:vFoodTab,progress:vProgressTab,more:vMore}[UI.tab]||vTodayTab)();
   $("#app").innerHTML=v;
   $("#tabs").innerHTML=TABS.map(([id,l,ic])=>`<button data-a="tab" data-v="${id}" ${UI.tab===id?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ic}</svg>${l}</button>`).join("");
   renderSheet(); renderRest(); setTimeout(checkGame,0);
@@ -750,6 +754,16 @@ function render(){
 function box(checked,attrs){ return `<button class="box" role="checkbox" aria-checked="${!!checked}" ${attrs}>${CHECK}</button>` }
 
 /* --- Сегодня --- */
+const segBar=(items,cur,act,label)=>`<div class="seg" role="group" aria-label="${label}">${items.map(([v,l])=>`<button aria-pressed="${cur===v}" data-a="${act}" data-v="${v}">${l}</button>`).join("")}</div>`;
+const stripHead=h=>h.replace(/^\s*<header>[\s\S]*?<\/header>/,"");
+function vTodayTab(){ return segBar([["day","День"],["week","Неделя"]],UI.todayMode,"todayMode","Вид")+(UI.todayMode==="week"?vWeek():vToday()) }
+// Сводка питания: остаток до нормы, допуски, полосы КБЖУ
+function foodSummary(k,d){ const t=settings().target, food=d.food||[], sum=food.reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p),f:a.f+num(f.f),c:a.c+num(f.c)}),{k:0,p:0,f:0,c:0});
+  const meter=(v,goal,l,u)=>`<div class="stack" style="gap:3px"><div class="row between small"><span>${l}</span><span class="num">${Math.round(v)}${goal?" / "+goal:""} ${u}</span></div>${goal?`<div class="meter ${v>goal*1.05?"over":""}"><i style="width:${Math.min(100,v/goal*100)}%"></i></div>`:""}</div>`;
+  const rk=t?t.kcal-sum.k:0, E=t&&food.length?kbjuEval(d):null;
+  return `${t?`<div class="small">${rk>=0?`Осталось: <b class="num">${Math.round(rk)} ккал</b> · Б ${Math.max(0,Math.round(t.p-sum.p))} · Ж ${Math.max(0,Math.round(t.f-sum.f))} · У ${Math.max(0,Math.round(t.c-sum.c))} г`:`<span style="color:var(--red)">Перебор: +${Math.round(-rk)} ккал</span>`}</div>`:`<div class="row between small"><span class="muted">Норма КБЖУ не задана</span><button class="btn-sm" data-a="go" data-v="food" data-m="norm">Рассчитать</button></div>`}
+    ${E?`<div class="row small">${E.ok?'<span class="chip up">Норма дня выполнена</span>':'<span class="chip">Норма пока не выполнена</span>'}${E.items.map(i=>`<span class="chip ${i.ok?"up":i.low?"":"down"}">${i.n} ${Math.round(i.pct*100)}%</span>`).join("")}</div>`:""}
+    ${meter(sum.k,t?.kcal,"Калории","ккал")}<div class="grid3">${meter(sum.p,t?.p,"Белки","г")}${meter(sum.f,t?.f,"Жиры","г")}${meter(sum.c,t?.c,"Углеводы","г")}</div>` }
 function vToday(){
   ensureRecurring(UI.day); const k=UI.day, d=peekDay(k)||{tasks:[],habits:{},food:[]}, isToday=k===todayKey(); const st=dayStats(k); const hab=settings().habits;
   const tired=isToday&&num(d.sleep)>0&&num(d.sleep)<6&&d.energy>0&&d.energy<=2;
@@ -765,13 +779,11 @@ function vToday(){
     ${tired?`<div class="banner"><b>Плохо восстановился:</b> сон ${fmtSleep(d.sleep)}, энергия ${d.energy} из 5. Сделай на подход меньше и сними 10% веса — в дефиците это бережёт мышцы.</div>`:""}
     <div class="row"><button class="btn-primary grow" data-a="startP" data-id="${np.id}"${tired?' data-light="1"':dl?' data-deload="1"':""}>${tired?"Начать облегчённую":dl?"Начать разгрузочную":"Начать"} ${esc(progName(np))}</button>${PROGRAMS.filter(p=>p.id!==np.id).map(p=>`<button data-a="startP" data-id="${p.id}">${p.id}</button>`).join("")}</div>
     ${tired||dl?`<div class="row">${tired||dl?`<button class="btn-ghost btn-sm" data-a="startP" data-id="${np.id}">Всё равно в полную силу</button>`:""}${dl==="due"?`<button class="btn-ghost btn-sm" data-a="deloadSnooze">Напомнить через неделю</button>`:""}</div>`:""}`;
-  const t=settings().target; const food=d.food||[]; const sum=food.reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p),f:a.f+num(f.f),c:a.c+num(f.c)}),{k:0,p:0,f:0,c:0});
-  const meter=(v,goal,l,u)=>`<div class="stack" style="gap:3px"><div class="row between small"><span>${l}</span><span class="num">${Math.round(v)}${goal?" / "+goal:""} ${u}</span></div>${goal?`<div class="meter ${v>goal*1.05?"over":""}"><i style="width:${Math.min(100,v/goal*100)}%"></i></div>`:""}</div>`;
   return `
   <header class="row between"><div><div class="eyebrow">${isToday?"Сегодня":"День"} · ${WD[wdIdx(k)]}</div><h1>${fmtD(k)}</h1></div>
     <div class="row"><button class="icon-btn" data-a="dayShift" data-v="-1" aria-label="Предыдущий день">‹</button>${isToday?"":`<button class="btn-sm" data-a="dayToday">Сегодня</button>`}<button class="icon-btn" data-a="dayShift" data-v="1" aria-label="Следующий день">›</button></div></header>
   ${vGame(k)}
-  ${needBody?`<div class="banner row between"><span>${lb?"Больше недели без замеров.":"Замеров ещё нет."} Впиши вес и талию — без них не видно, как идёт рекомпозиция.</span><button class="btn-sm" data-a="go" data-v="progress">Вписать</button></div>`:""}
+  ${needBody?`<div class="banner row between"><span>${lb?"Больше недели без замеров.":"Замеров ещё нет."} Впиши вес и талию — без них не видно, как идёт рекомпозиция.</span><button class="btn-sm" data-a="go" data-v="progress" data-m="body">Вписать</button></div>`:""}
   <section class="card">${train}</section>
   <section class="card"><div class="row between"><h2>Привычки и задачи</h2><span class="chip ${st.total&&st.done===st.total?"up":"acc"}">${st.done} из ${st.total}</span></div>
     <div>${hab.map(h=>{const n=hParts(h), a=hpOf(d,h), c=a.filter(Boolean).length; return `<div class="check ${d.habits?.[h.id]?"done":""} ${n>1?"multi":""}">${box(d.habits?.[h.id],`data-a="habit" data-id="${h.id}" aria-label="${esc(h.name)}"`)}<span class="txt">${esc(h.name)}${n>1?` <span class="muted small num">${c}/${n}</span>`:""}</span>${(s2=>s2>=2?`<span class="chip up">${s2} дн. подряд</span>`:'<span class="chip">привычка</span>')(streak(h.id))}
@@ -779,22 +791,16 @@ function vToday(){
     ${(d.tasks||[]).map(x=>`<div class="check ${x.done?"done":""}">${box(x.done,`data-a="task" data-day="${k}" data-id="${x.id}" aria-label="${esc(x.text)}"`)}<span class="txt">${esc(x.text)}${x.rid?' <span class="chip">повтор</span>':""}</span>${x.done?"":`<button class="btn-sm" data-a="moveTask" data-day="${k}" data-id="${x.id}" aria-label="Перенести «${esc(x.text)}» на завтра">→ завтра</button>`}<button class="x" data-a="delTask" data-day="${k}" data-id="${x.id}" aria-label="Удалить">×</button></div>`).join("")}</div>
     <div class="add"><input id="add-task-${k}" placeholder="Новая задача на день" data-enter="addTask" data-day="${k}" autocomplete="off"><button data-a="addTask" data-day="${k}">Добавить</button></div>
     <button class="btn-ghost" style="align-self:flex-start" data-a="go" data-v="more" data-m="settings">Изменить список привычек</button></section>
+  <section class="card"><div class="row between"><h2>Питание</h2><button class="btn-ghost btn-sm" data-a="go" data-v="food" data-m="diary">Дневник ›</button></div>
+    ${foodSummary(k,d)}
+    <div class="row"><button class="grow btn-primary" data-a="foodAdd">Добавить еду</button><button data-a="recipeAdd" data-v="0">+ Капучино</button></div></section>
   <section class="card"><h2>Состояние</h2>
     <div class="grid2"><label class="field">Сон<select id="sleep-${k}" data-c="sleep" data-day="${k}"><option value="">—</option>${[...Array(13)].map((_,i)=>4+i/2).map(h=>`<option ${num(d.sleep)===h&&d.sleep!==""?"selected":""} value="${h}">${fmtN(h)} ч</option>`).join("")}</select></label>
     <div class="field"><span class="small muted">Энергия</span><div class="pickrow">${[1,2,3,4,5].map(n=>`<button aria-pressed="${d.energy===n}" data-a="energy" data-day="${k}" data-v="${n}" aria-label="Энергия ${n}">${n}⚡</button>`).join("")}</div></div></div>
     <div class="field"><span class="small muted">Настроение</span><div class="pickrow">${MOODS.map((m,i)=>`<button aria-pressed="${d.mood===i+1}" data-a="mood" data-day="${k}" data-v="${i+1}" aria-label="Настроение ${i+1}">${m}</button>`).join("")}</div></div>
     <label class="field">Урок дня<textarea id="lesson-${k}" data-i="lesson" data-day="${k}" placeholder="Что понял или выучил сегодня">${esc(d.lesson||"")}</textarea></label></section>
-  <section class="card"><div class="row between"><h2>Питание</h2>${t?"":`<button class="btn-sm" data-a="go" data-v="more" data-m="food">Рассчитать норму</button>`}</div>
-    ${t?(()=>{const rk=t.kcal-sum.k; return `<div class="small">${rk>=0?`Осталось: <b class="num">${Math.round(rk)} ккал</b> · Б ${Math.max(0,Math.round(t.p-sum.p))} · Ж ${Math.max(0,Math.round(t.f-sum.f))} · У ${Math.max(0,Math.round(t.c-sum.c))} г`:`<span style="color:var(--red)">Перебор: +${Math.round(-rk)} ккал</span>`}</div>`})():""}
-    ${t&&food.length?(()=>{ const E=kbjuEval(d); return `<div class="row small">${E.ok?'<span class="chip up">Норма дня выполнена</span>':'<span class="chip">Норма пока не выполнена</span>'}${E.items.map(i=>`<span class="chip ${i.ok?"up":i.low?"":"down"}">${i.n} ${Math.round(i.pct*100)}%</span>`).join("")}</div>` })():""}
-    ${meter(sum.k,t?.kcal,"Калории","ккал")}<div class="grid3">${meter(sum.p,t?.p,"Белки","г")}${meter(sum.f,t?.f,"Жиры","г")}${meter(sum.c,t?.c,"Углеводы","г")}</div>
-    ${food.length?`<div>${food.map(f=>`<div class="check"><span class="txt">${esc(f.n)}</span><span class="small muted num">${Math.round(num(f.k))} ккал · ${Math.round(num(f.p))}/${Math.round(num(f.f))}/${Math.round(num(f.c))}</span><button class="x" data-a="delFood" data-day="${k}" data-id="${f.id}" aria-label="Удалить">×</button></div>`).join("")}</div>`:""}
-    <div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div>
-    <div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div>
-    <div class="row"><button class="grow" data-a="addFood" data-day="${k}">Записать еду</button><button data-a="recipeAdd" data-v="0">+ Капучино</button><button class="btn-ghost" data-a="go" data-v="more" data-m="recipes">Из рецептов</button></div>
-    ${(()=>{ const fav=favFoods(k); UI.favCache=fav; const yd=peekDay(ymd(addDays(parseYmd(k),-1)))?.food||[];
-      return (fav.length?`<div class="stack" style="gap:6px"><span class="eyebrow">Часто ешь</span><div class="row">${fav.map((f,i)=>`<button class="chip" data-a="favAdd" data-day="${k}" data-i="${i}">+ ${esc(f.n)}</button>`).join("")}</div></div>`:"")
-        +(yd.length?`<button class="btn-ghost btn-sm" style="align-self:flex-start;padding-left:0" data-a="foodRepeat" data-day="${k}">Повторить еду вчерашнего дня (${yd.length})</button>`:"") })()}</section>`;
+  ${vGameDay(k)}`;
+
 }
 
 /* --- Планер (неделя) --- */
@@ -829,14 +835,14 @@ function vTrain(){
   const id=UI.openWorkout||activeWorkout(); if(id&&S.workouts[id]) return vLogger(id);
   const hist=finished().reverse(); const np=nextProgram(); const cps=settings().customPrograms||[];
   return `<header><div class="eyebrow">Тренировка</div><h1>Программы</h1></header>
-  <section class="card"><div class="check ${settings().supersets?"":""}">${box(settings().supersets,'data-a="ssToggle" aria-label="Суперсерии"')}<span class="txt"><b>Суперсерии</b><br><span class="small muted">Грудь + спина, плечи + ноги, бицепс + трицепс. Пары соберутся сами, когда начнёшь программу. Связать вручную можно кнопкой «Суперсерия» у упражнения.</span></span></div></section>
   ${PROGRAMS.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-${p.id}"></span><div class="grow stack" style="gap:4px">
     <div class="row between"><h2>${esc(progName(p))}</h2>${p.id===np?'<span class="chip acc">следующая</span>':""}</div><div class="small muted">${p.src} · ${p.scheme}</div>
     <div class="small">${p.items.map(i=>exName(i.ex)).join(" · ")}</div><div class="small muted">Разминка: 10 мин эллипс · Кардио 15 мин · Заминка</div></div></div>
-    <div class="row"><button class="grow ${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button></div></section>`).join("")}
+    <div class="row"><button class="grow ${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}">Начать</button><button class="chip" aria-pressed="${!!settings().supersets}" data-a="ssToggle" title="Грудь + спина, плечи + ноги, бицепс + трицепс">Суперсерии ${settings().supersets?"вкл":"выкл"}</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button></div></section>`).join("")}
+  <p class="small muted" style="margin:0">Суперсерии — пары грудь + спина, плечи + ноги, бицепс + трицепс собираются сами при старте. Связать вручную — кнопка «Суперсерия» у упражнения.</p>
   ${cps.length?`<h2>Свои программы</h2>${cps.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-X"></span><div class="grow"><h3>${esc(p.n)}</h3><div class="small muted">${p.items.map(i=>exName(i.ex)).join(" · ")}</div></div></div><div class="row"><button class="grow" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button><button class="btn-sm btn-danger" data-a="delProg" data-id="${p.id}">Удалить</button></div></section>`).join("")}`:""}
   <button data-a="startEmpty">Пустая тренировка — набрать упражнения самому</button>
-  <section class="card"><h2>История</h2>${hist.length?hist.slice(0,30).map(w=>`<button class="pick" data-a="openW" data-id="${w.id}"><span><b>${esc(w.title)}</b><br><span class="small muted">${fmtD(w.date)} · ${w.ex.length} упр. · ${wSets(w)} подх.${w.ex.some(e=>e.ss)?" · суперсерии":""}</span></span><span class="num">${fmtN(wVolume(w)/1000)} т</span></button>`).join(""):'<div class="empty">Здесь появятся завершённые тренировки</div>'}</section>`;
+  <section class="card"><h2>История</h2>${hist.length?hist.slice(0,UI.histAll?60:5).map(w=>`<button class="pick" data-a="openW" data-id="${w.id}"><span><b>${esc(w.title)}</b><br><span class="small muted">${fmtD(w.date)} · ${w.ex.length} упр. · ${wSets(w)} подх.${w.ex.some(e=>e.ss)?" · суперсерии":""}</span></span><span class="num">${fmtN(wVolume(w)/1000)} т</span></button>`).join("")+(hist.length>5&&!UI.histAll?`<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="histAll">Показать все (${hist.length})</button>`:""):'<div class="empty">Здесь появятся завершённые тренировки</div>'}</section>`;
 }
 function vLogger(id){
   const w=S.workouts[id]; const fin=!!w.finishedAt; const el=fin?((w.finishedAt-(w.startedAt||w.finishedAt))/1000):((Date.now()-w.startedAt)/1000);
@@ -880,6 +886,9 @@ function vExercise(id,w,e,i){
 }
 
 /* --- Прогресс --- */
+function vProgressTab(){ const t=UI.progTab||"train", T={train:"Тренировки",strength:"Сила",body:"Тело",game:"Игра"};
+  return `<header><div class="eyebrow">Прогресс</div><h1>${T[t]}</h1></header>`+segBar(Object.entries(T),t,"progTab","Раздел прогресса")
+    +(t==="strength"?vSkills()+vRecords()+vWorking():t==="body"?vBody():t==="game"?stripHead(vAch()):stripHead(vProgress())) }
 function vProgress(){
   const P=UI.period; const a=periodStart(P,0), b=null, pa=periodStart(P,1), pb=periodStart(P,0);
   const cur=finished().filter(w=>inRange(w.date,a,b)), prv=P==="all"?[]:finished().filter(w=>inRange(w.date,pa,pb));
@@ -891,7 +900,7 @@ function vProgress(){
   const all=finished(); const firstD=all[0]?.date; const weeksSpan=firstD?Math.max(1,(Date.now()-parseYmd(firstD))/(7*864e5)):1;
   const vol8=[...Array(8)].map((_,i)=>{const m=ymd(addDays(monday(new Date()),-7*(7-i)));const e=ymd(addDays(parseYmd(m),7));return {l:fmtDs(m),v:r1(sum(all.filter(w=>w.date>=m&&w.date<e),wVolume)/1000),hi:i===7}});
   const st=exStats(a); const sel=UI.progEx&&st.find(s=>s.id===UI.progEx)?UI.progEx:st[0]?.id; const so=st.find(s=>s.id===sel);
-  return `<header><div class="eyebrow">Прогресс</div><h1>Тренировки и тело</h1></header>
+  return `<header><div class="eyebrow">Прогресс</div><h1>Тренировки</h1></header>
   <div class="seg" role="group" aria-label="Период">${[["week","Неделя"],["month","Месяц"],["all","Всё время"]].map(([v,l])=>`<button aria-pressed="${P===v}" data-a="period" data-v="${v}">${l}</button>`).join("")}</div>
   <div class="grid2"><div class="kpi"><span class="v">${cur.length} ${dd(cur.length,prv.length)}</span><span class="l">Тренировок</span></div>
    <div class="kpi"><span class="v">${sum(cur,wSets)} ${dd(sum(cur,wSets),sum(prv,wSets))}</span><span class="l">Подходов</span></div>
@@ -906,10 +915,7 @@ function vProgress(){
    ${st.length?`<div class="tbl-wrap"><table><thead><tr><th>Упражнение</th><th>Раз</th><th>Ср п</th><th>Ср вес</th><th>Макс</th><th>Мин</th></tr></thead><tbody>
    ${st.map(s=>`<tr data-a="progEx" data-v="${s.id}" class="${s.id===sel?"sel":""}"><td>${esc(exName(s.id))}</td><td>${s.n}</td><td>${fmtN(s.sets/s.n)}</td><td>${s.wcnt?fmtN(s.wsum/s.wcnt)+(s.u==="кг"?"":" п"):"—"}</td><td>${s.max>-Infinity?fmtN(s.max)+(s.u==="кг"?"":" п"):"—"}</td><td>${s.min<Infinity?fmtN(s.min)+(s.u==="кг"?"":" п"):"—"}</td></tr>`).join("")}</tbody></table></div><p class="small muted" style="margin:0">Нажми на строку, чтобы увидеть график. «п» — повторы в упражнениях со своим весом.</p>`:'<div class="empty">За этот период тренировок нет</div>'}</section>
   ${(()=>{ const ids=[...new Set(finished().flatMap(w=>w.ex.map(e=>e.exId)))].filter(id=>EX[id]&&stalled(id)); return ids.length?`<section class="card"><h2>Застой</h2><p class="small muted" style="margin:0">Три последние тренировки без роста ни в весе, ни в повторах. Варианты: заменить упражнение на похожее (кнопка «Заменить» в тренировке), снять 10% веса и добирать повторы, или сделать разгрузочную неделю.</p><div>${ids.map(id=>`<div class="check"><span class="txt">${esc(exName(id))}</span><span class="small muted">${EX[id].g}</span></div>`).join("")}</div></section>`:"" })()}
-  ${vSkills()}
-  ${vRecords()}
-  ${vWorking()}
-  ${vBody()}`;
+`;
 }
 function vRecords(){ const B=bests(null); const ids=Object.keys(B).filter(id=>EX[id]&&!EX[id].assist&&(B[id].w||B[id].r)).sort((a,b)=>(B[b].wd||B[b].rd)>(B[a].wd||B[a].rd)?1:-1);
   return `<section class="card"><h2>Личные рекорды</h2>${ids.length?`<div class="tbl-wrap"><table><thead><tr><th>Упражнение</th><th>Макс</th><th>Расч. 1ПМ</th><th>Дата</th></tr></thead><tbody>
@@ -921,7 +927,7 @@ function vWorking(){
   return `<section class="card"><div class="row between"><h2>Рабочие веса</h2><span class="small muted">${ids.length} упр.</span></div>
    <p class="small muted" style="margin:0">Подставляются в тренировку и обновляются сами после неё. Для упражнений со своим весом записывается лучший подход в повторах. Нажми на упражнение, чтобы записать новое значение.</p>
    ${ids.length?GROUPS.map(g=>{const l=ids.filter(id=>EX[id].g===g); if(!l.length) return ""; return `<div class="eyebrow">${g}</div><div>${l.map(id=>{const h=it[id].h; const d=h.length>1?h[h.length-1]-h[0]:0; const good=EX[id].assist?d<0:d>0;
-     return `<div class="check"><button class="txt btn-ghost" style="padding:0;justify-content:flex-start;text-align:left;color:var(--ink)" data-a="sheet" data-v="info" data-ex="${id}"><span><b>${esc(exName(id))}</b><br><span class="small muted num">${h.map(fmtN).join(" → ")}${unitTxt(it[id].u)}${it[id].note?" · "+esc(it[id].note):""}</span>${EX[id].archived?' <span class="chip">архив</span>':""}</span></button><span class="num" style="font-size:20px">${fmtN(h[h.length-1])}</span>${h.length>1?`<span class="chip ${good?"up":d?"down":""}">${d>0?"+":""}${fmtN(d)}</span>`:""}</div>`}).join("")}</div>`}).join(""):'<div class="empty">Открой любое упражнение в «Ещё» → «Упражнения» и запиши рабочий вес</div>'}
+     return `<div class="check"><button class="txt btn-ghost" style="padding:0;justify-content:flex-start;text-align:left;color:var(--ink)" data-a="sheet" data-v="info" data-ex="${id}"><span><b>${esc(exName(id))}</b><br><span class="small muted num">${h.map(fmtN).join(" → ")}${unitTxt(it[id].u)}${it[id].note?" · "+esc(it[id].note):""}</span>${EX[id].archived?' <span class="chip">архив</span>':""}</span></button><span class="num" style="font-size:20px">${fmtN(h[h.length-1])}</span>${h.length>1?`<span class="chip ${good?"up":d?"down":""}">${d>0?"+":""}${fmtN(d)}</span>`:""}</div>`}).join("")}</div>`}).join(""):'<div class="empty">Открой любое упражнение в «Ещё» → «Справочник» и запиши рабочий вес</div>'}
   </section>`;
 }
 const BODY=[["weight","Вес","кг"],["waist","Талия","см"],["chest","Грудь","см"],["hips","Бёдра","см"],["arm","Бицепс","см"],["thigh","Бедро","см"]];
@@ -944,22 +950,9 @@ function vBody(){
 }
 
 /* --- Ещё --- */
-function vMore(){
-  const m=UI.more; const back=`<button class="btn-ghost" style="align-self:flex-start;padding-left:0" data-a="more" data-v="">‹ Ещё</button>`;
-  if(m==="food") return back+vFood(); if(m==="recipes") return back+vRecipes(); if(m==="kb") return back+vKB(); if(m==="ach") return back+vAch(); if(m==="settings") return back+vSettings(); if(m==="library") return back+vLibrary();
-  const it=(v,t,d)=>`<button class="pick" data-a="more" data-v="${v}"><span><b>${t}</b><br><span class="small muted">${d}</span></span><span class="muted">›</span></button>`;
-  return `<header><div class="eyebrow">Ещё</div><h1>Инструменты</h1></header><div class="menu">
-   ${it("ach","Достижения","Уровень, серия, опыт за неделю и значки")}
-   ${it("food","Питание и КБЖУ","Расчёт дневной нормы калорий, белков, жиров и углеводов")}
-   ${it("recipes","Рецепты","Твои блюда на завтрак, обед и ужин с КБЖУ")}
-   ${it("library","Упражнения","Все упражнения из FullBody с подсказками по технике")}
-   ${it("kb","База знаний","Коротко о прогрессии, отдыхе, кардио, сне и КБЖУ")}
-   ${it("settings","Настройки","Привычки, тема, резервная копия")}</div>`;
-}
-function vFood(){
-  const p=settings().profile, r=mifflin(p), t=settings().target;
+function vProfile(){ const p=settings().profile, r=mifflin(p);
   const sel=(id,c,opts,val)=>`<select id="${id}" data-c="${c}">${opts.map(([v,l])=>`<option value="${v}" ${String(val)===String(v)?"selected":""}>${l}</option>`).join("")}</select>`;
-  return `<header><div class="eyebrow">Питание</div><h1>Норма КБЖУ</h1></header>
+  return `<header><div class="eyebrow">Ещё</div><h1>Профиль</h1></header>
   <section class="card"><div class="grid2">
    <label class="field">Пол${sel("pf-sex","prof-sex",[["m","Мужской"],["f","Женский"]],p.sex)}</label>
    <label class="field">Возраст<input id="pf-age" type="number" inputmode="numeric" value="${esc(p.age)}" data-c="prof-age"></label>
@@ -967,9 +960,36 @@ function vFood(){
    <label class="field">Вес, кг<input id="pf-weight" type="number" inputmode="decimal" value="${esc(p.weight)}" data-c="prof-weight"></label></div>
    <label class="field">Активность${sel("pf-act","prof-activity",[[1.2,"Сидячая работа, без тренировок"],[1.375,"1–3 тренировки в неделю"],[1.55,"3–5 тренировок в неделю"],[1.725,"6–7 тренировок в неделю"],[1.9,"Тяжёлый физический труд + спорт"]],p.activity)}</label>
    <label class="field">Цель${sel("pf-goal","prof-goal",[["recomp","Рекомпозиция: мышцы + минус жир"],["cut","Похудеть (−15%)"],["keep","Поддерживать вес"],["gain","Набрать массу (+10%)"]],p.goal)}</label></section>
+  <p class="small muted" style="margin:0">По профилю считается норма КБЖУ и сравнение силы с людьми твоего возраста и веса («Прогресс» → «Сила»).</p>
+  ${r?`<button class="pick" data-a="go" data-v="food" data-m="norm"><span><b>Норма: ${r.kcal} ккал</b><br><span class="small muted">Б ${r.p} · Ж ${r.f} · У ${r.c} г</span></span><span class="muted">›</span></button>`:""}`;
+}
+function vMore(){
+  const m=UI.more; const back=`<button class="btn-ghost" style="align-self:flex-start;padding-left:0" data-a="more" data-v="">‹ Ещё</button>`;
+  if(m==="profile") return back+vProfile(); if(m==="ref") return back+`<header><div class="eyebrow">Справочник</div><h1>${UI.refTab==="kb"?"База знаний":"Упражнения"}</h1></header>`+segBar([["lib","Упражнения"],["kb","База знаний"]],UI.refTab,"refTab","Раздел справочника")+stripHead(UI.refTab==="kb"?vKB():vLibrary()); if(m==="settings") return back+vSettings();
+  const it=(v,t,d)=>`<button class="pick" data-a="more" data-v="${v}"><span><b>${t}</b><br><span class="small muted">${d}</span></span><span class="muted">›</span></button>`;
+  return `<header><div class="eyebrow">Ещё</div><h1>Ещё</h1></header><div class="menu">
+   ${it("profile","Профиль","Пол, возраст, рост, вес и цель — для нормы КБЖУ и навыков")}
+   ${it("ref","Справочник","Упражнения с подсказками по технике и база знаний")}
+   ${it("settings","Настройки","Привычки и повторы, оформление, Telegram, данные")}</div>`;
+}
+function vFoodTab(){ const t=UI.foodTab||"diary";
+  return `<header><div class="eyebrow">Питание</div><h1>${{diary:"Дневник",norm:"Норма КБЖУ",recipes:"Рецепты"}[t]}</h1></header>`+segBar([["diary","Дневник"],["norm","Норма"],["recipes","Рецепты"]],t,"foodTab","Раздел питания")
+    +(t==="norm"?stripHead(vFood()):t==="recipes"?stripHead(vRecipes()):vDiary()) }
+function vDiary(){ const k=UI.day, d=peekDay(k)||{food:[]}, food=d.food||[], isToday=k===todayKey(), yd=peekDay(ymd(addDays(parseYmd(k),-1)))?.food||[];
+  return `<div class="row between"><b>${isToday?"Сегодня":WD[wdIdx(k)]}, ${fmtD(k)}</b><div class="row"><button class="icon-btn" data-a="dayShift" data-v="-1" aria-label="Предыдущий день">‹</button>${isToday?"":`<button class="btn-sm" data-a="dayToday">Сегодня</button>`}<button class="icon-btn" data-a="dayShift" data-v="1" aria-label="Следующий день">›</button></div></div>
+  <section class="card">${foodSummary(k,d)}</section>
+  <section class="card"><div class="row between"><h2>Съедено</h2><span class="small muted">${food.length} ${plural(food.length,"запись","записи","записей")}</span></div>
+    ${food.length?`<div>${food.map(f=>`<div class="check"><span class="txt">${esc(f.n)}</span><span class="small muted num">${Math.round(num(f.k))} ккал · ${Math.round(num(f.p))}/${Math.round(num(f.f))}/${Math.round(num(f.c))}</span><button class="x" data-a="delFood" data-day="${k}" data-id="${f.id}" aria-label="Удалить">×</button></div>`).join("")}</div>`:'<div class="empty">Пока пусто. Нажми «Добавить еду».</div>'}
+    <div class="row"><button class="grow btn-primary" data-a="foodAdd">Добавить еду</button><button data-a="recipeAdd" data-v="0">+ Капучино</button></div>
+    ${yd.length?`<button class="btn-ghost btn-sm" style="align-self:flex-start;padding-left:0" data-a="foodRepeat" data-day="${k}">Повторить еду вчерашнего дня (${yd.length})</button>`:""}</section>` }
+function vFood(){
+  const p=settings().profile, r=mifflin(p), t=settings().target;
+  const GOALS={recomp:"рекомпозиция",cut:"похудение",keep:"поддержание",gain:"набор массы"};
+  return `<header><div class="eyebrow">Питание</div><h1>Норма КБЖУ</h1></header>
+  <section class="card"><div class="row between" style="flex-wrap:nowrap"><span class="small">${p.sex==="f"?"Женщина":"Мужчина"} · ${num(p.age)?p.age+" лет":"возраст ?"} · ${num(p.height)?p.height+" см":"рост ?"} · ${num(p.weight)?p.weight+" кг":"вес ?"} · ${GOALS[p.goal]||"цель ?"}</span><button class="btn-sm" data-a="go" data-v="more" data-m="profile">Профиль ›</button></div></section>
   ${r?`<section class="card"><div class="eyebrow">Твоя норма в день</div><div class="row" style="align-items:baseline"><span class="num" style="font-size:40px">${r.kcal}</span><span class="muted">ккал · базовый обмен ${r.bmr}</span></div>
    <div class="grid3"><div class="kpi"><span class="v">${r.p}</span><span class="l">Белки, г</span></div><div class="kpi"><span class="v">${r.f}</span><span class="l">Жиры, г</span></div><div class="kpi"><span class="v">${r.c}</span><span class="l">Углеводы, г</span></div></div>
-   <button class="btn-primary" data-a="setTarget">${t&&t.kcal===r.kcal&&t.p===r.p?"Сохранено как цель":"Сохранить как дневную цель"}</button></section>`:'<div class="empty">Заполни возраст, рост и вес — посчитаю норму по формуле Миффлина–Сан Жеора</div>'}
+   <button class="btn-primary" data-a="setTarget">${t&&t.kcal===r.kcal&&t.p===r.p?"Сохранено как цель":"Сохранить как дневную цель"}</button></section>`:'<div class="empty">Заполни возраст, рост и вес в профиле — посчитаю норму по формуле Миффлина–Сан Жеора</div>'}
   ${p.goal==="recomp"?vRecomp(r):""}
   <section class="card"><h2>Когда норма дня выполнена</h2><div class="stack small">
     <div><b>Калории: 90–105% цели.</b> <span class="muted">Ошибка подсчёта и этикеток сама по себе около ±10%, поэтому недобор до 10% — нормально. Перебор больше 5% съедает дефицит рекомпозиции почти наполовину.</span></div>
@@ -991,7 +1011,7 @@ function vRecomp(r){
    <div class="grid3"><div class="kpi"><span class="v">${R.wt?(R.wt.d>0?"+":"")+fmtN(R.wt.d):"—"}</span><span class="l">Вес, кг</span></div>
     <div class="kpi"><span class="v">${R.waist?(R.waist.d>0?"+":"")+fmtN(R.waist.d):"—"}</span><span class="l">Талия, см</span></div>
     <div class="kpi"><span class="v">${R.both?R.up+"/"+R.both:"—"}</span><span class="l">Веса растут</span></div></div>
-   ${R.verdict?`<span class="chip ${R.verdict.c}" style="white-space:normal">${R.verdict.t}</span>`:'<p class="small muted" style="margin:0">Вписывай вес и талию раз в неделю на вкладке «Прогресс». Через 1–4 недели здесь появится вывод.</p>'}
+   ${R.verdict?`<span class="chip ${R.verdict.c}" style="white-space:normal">${R.verdict.t}</span>`:'<p class="small muted" style="margin:0">Вписывай вес и талию раз в неделю: «Прогресс» → «Тело». Через 1–4 недели здесь появится вывод.</p>'}
    <p class="small muted" style="margin:0">Рекомпозиция идёт, если вес стоит или снижается до 0,5% в неделю, талия уменьшается, а рабочие веса растут.</p></section>`;
 }
 function vRecipes(){
@@ -1134,16 +1154,20 @@ function vTelegram(){ const t=TG.get();
 function vSettings(){
   const s=settings(); const th=s.theme||"";
   return `<header><div class="eyebrow">Настройки</div><h1>Под себя</h1></header>
+  <div class="eyebrow">Привычки и задачи</div>
   <section class="card"><h2>Ежедневные привычки</h2><p class="small muted" style="margin:0">Появляются в каждом дне и считаются в проценте выполнения.</p>
    <div>${s.habits.map(h=>`<div class="check"><span class="txt">${esc(h.name)}</span><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="icon-btn" data-a="habitParts" data-id="${h.id}" data-v="-1" aria-label="Меньше блоков" ${hParts(h)<2?"disabled":""}>−</button><span class="small num" style="min-width:64px;text-align:center">${hParts(h)>1?(hParts(h)+" блока").replace(/^([5-9]|10) блока$/,"$1 блоков"):"1 блок"}</span><button class="icon-btn" data-a="habitParts" data-id="${h.id}" data-v="1" aria-label="Больше блоков" ${hParts(h)>=10?"disabled":""}>+</button></span><button class="x" data-a="delHabit" data-id="${h.id}" aria-label="Удалить привычку">×</button></div>`).join("")}</div>
    <p class="small muted" style="margin:0">Блоки — части привычки, например 3 приёма витаминов или 5 подходов отжиманий. Привычка закрывается, когда отмечены все блоки.</p>
    <div class="add"><input id="add-habit" placeholder="Новая привычка" data-enter="addHabit" autocomplete="off"><select id="add-habit-parts" style="width:auto" aria-label="Сколько блоков">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} бл.</option>`).join("")}</select><button data-a="addHabit">Добавить</button></div></section>
   ${vRecurring()}
-  ${vTelegram()}
+  <div class="eyebrow">Оформление</div>
   <section class="card"><h2>Тема</h2><div class="seg" role="group" aria-label="Тема">${[["dark","Тёмная"],["light","Светлая"],["auto","Как в системе"]].map(([v,l])=>`<button aria-pressed="${(settings().theme||"dark")===v}" data-a="theme" data-v="${v}">${l}</button>`).join("")}</div>
    <div class="row">${Object.entries(ACCENTS).map(([id,a])=>{ const own=gm().accents.includes(id); return `<button class="chip" ${own?"":"disabled"} aria-pressed="${gm().accent===id}" data-a="accentSet" data-v="${id}" style="gap:6px"><i style="width:12px;height:12px;border-radius:50%;background:${a.a};display:inline-block"></i>${a.n}${own?"":" · закрыт"}</button>` }).join("")}</div>
    <p class="small muted" style="margin:0">Новые цвета выпадают из сундуков.</p></section>
-  <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
+  <div class="eyebrow">Telegram</div>
+  ${vTelegram()}
+  <div class="eyebrow">Данные</div>
+  <section class="card"><h2>Резервная копия</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
    ${Store.downloads||Store.mode==="local"?`<button data-a="export">Скачать резервную копию (JSON)</button>`:""}
    <label class="btn" for="import-in">Восстановить из копии</label><input id="import-in" type="file" accept="application/json,.json" hidden data-c="import"></section>`;
 }
@@ -1192,6 +1216,12 @@ function renderSheet(){
   else if(sh.type==="chest"){ const g=gm(); body=sh.reward?`<div class="done-hero">${ICON[sh.reward.icon]||ICON.chest}<h2>${esc(sh.reward.title)}</h2><p class="muted" style="margin:0">${esc(sh.reward.sub||"")}</p></div>
       <div class="row">${g.chests?`<button class="grow" data-a="chestOpen">Открыть ещё (${g.chests})</button>`:""}<button class="grow btn-primary" data-a="sheetClose">Забрать</button></div>`
     :`<div class="done-hero"><div class="chest-anim">${ICON.chest}</div><h2>Сундук</h2><p class="muted" style="margin:0">${g.chests?`В запасе: ${g.chests}`:"Сундуков пока нет"}</p></div>${g.chests?'<button class="btn-primary" data-a="chestOpen">Открыть</button>':""}` }
+  else if(sh.type==="addFood"){ const k=UI.day, tab=sh.tab||"fav", fav=favFoods(k); UI.favCache=fav; const yd=peekDay(ymd(addDays(parseYmd(k),-1)))?.food||[];
+    body=`<h2>Добавить еду${k===todayKey()?"":" · "+fmtD(k)}</h2>${segBar([["fav","Частое"],["rec","Рецепты"],["man","Вручную"]],tab,"addTab","Способ")}
+     ${tab==="fav"?(fav.length?`<div class="row">${fav.map((f,i)=>`<button class="chip" data-a="favAdd" data-day="${k}" data-i="${i}">+ ${esc(f.n)} · ${Math.round(num(f.k))}</button>`).join("")}</div>`:'<div class="empty">Здесь появится еда, которую ты записываешь чаще всего</div>')
+        +(yd.length?`<button data-a="foodRepeat" data-day="${k}">Повторить вчерашний день (${yd.length})</button>`:""):""}
+     ${tab==="rec"?RECIPES.map((r,ri)=>{const R=recipeCalc(ri); return `<button class="pick" data-a="recipeAdd" data-v="${ri}"><span><b>${esc(R.label)}</b><br><span class="small muted">Б ${Math.round(R.t.p)} · Ж ${Math.round(R.t.f)} · У ${Math.round(R.t.c)} г</span></span><span class="num">+ ${Math.round(R.t.k)}</span></button>`}).join("")+'<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="go" data-v="food" data-m="recipes">Порции и варианты — в «Рецептах» ›</button>':""}
+     ${tab==="man"?`<div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div><div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div><button class="btn-primary" data-a="addFood" data-day="${k}">Записать</button>`:""}` }
   else if(sh.type==="rename"){ body=`<h2>${sh.k==="w"?"Название тренировки":"Название программы"}</h2>
      <input id="rename-in" value="${esc(sh.name||"")}" data-i="renameIn" autocomplete="off" maxlength="60">
      <p class="small muted" style="margin:0">${sh.k==="w"?"Меняется только эта тренировка: в истории, в отчёте и в Telegram.":"Новое название будет у следующих тренировок по этой программе. Уже сделанные останутся со старым."}</p>
@@ -1240,10 +1270,13 @@ function makeEx(wid,it){ const prev=prevFor(it.ex,wid); const n=it.sets||4; cons
     sets:[...Array(n)].map((_,j)=>({w:hint?hint.w:(prev?.sets[j]?.w??prev?.sets[prev.sets.length-1]?.w??(workUnit(it.ex)==="кг"?workCur(it.ex):null)??""),r:"",done:false}))} }
 const ACT={
   tab:d=>{UI.tab=d.v; if(d.v!=="more")UI.more=null; if(d.v==="train")UI.openWorkout=null; scrollTo(0,0)},
-  go:d=>{UI.tab=d.v; UI.more=d.m||null; scrollTo(0,0)},
+  go:d=>{UI.tab=d.v; UI.sheet=null; if(d.v==="more") UI.more=d.m||null; else if(d.v==="food") UI.foodTab=d.m||"diary"; else if(d.v==="progress") UI.progTab=d.m||UI.progTab||"train"; else if(d.v==="today") UI.todayMode=d.m||"day"; scrollTo(0,0)},
+  todayMode:d=>{UI.todayMode=d.v; scrollTo(0,0)}, foodTab:d=>{UI.foodTab=d.v}, progTab:d=>{UI.progTab=d.v}, refTab:d=>{UI.refTab=d.v}, histAll:()=>{UI.histAll=true},
+  gameToggle:(d,t,ev)=>{ ev.preventDefault(); UI.gameOpen=!UI.gameOpen },
+  foodAdd:()=>{ UI.sheet={type:"addFood",tab:UI.favCache?.length||favFoods(UI.day).length?"fav":"rec"} }, addTab:d=>{ UI.sheet.tab=d.v },
   more:d=>{UI.more=d.v||null; scrollTo(0,0)},
   dayShift:d=>{UI.day=ymd(addDays(parseYmd(UI.day),+d.v))}, dayToday:()=>{UI.day=todayKey()},
-  openDay:d=>{UI.day=d.day; UI.tab="today"; scrollTo(0,0)},
+  openDay:d=>{UI.day=d.day; UI.tab="today"; UI.todayMode="day"; scrollTo(0,0)},
   weekShift:d=>{UI.weekOff+=+d.v}, weekNow:()=>{UI.weekOff=0},
   habit:d=>{const k=UI.day,x=day(k); x.habits=x.habits||{}; const on=!x.habits[d.id]; x.habits[d.id]=on; const h=settings().habits.find(h=>h.id===d.id); if(h&&hParts(h)>1) x.hp={...(x.hp||{}),[d.id]:Array(hParts(h)).fill(on)}; saveDay(k)},
   habitPart:d=>{const k=UI.day,x=day(k), h=settings().habits.find(h=>h.id===d.id); if(!h) return; const a=hpOf(x,h); a[+d.i]=!a[+d.i]; x.hp={...(x.hp||{}),[h.id]:a}; x.habits={...(x.habits||{}),[h.id]:a.every(Boolean)}; saveDay(k); if(a.every(Boolean)) toast(h.name+": всё выполнено")},
@@ -1258,7 +1291,7 @@ const ACT={
   energy:d=>{const x=day(d.day); x.energy=x.energy===+d.v?0:+d.v; saveDay(d.day)},
   mood:d=>{const x=day(d.day); x.mood=x.mood===+d.v?0:+d.v; saveDay(d.day)},
   addFood:d=>{const g=id=>document.getElementById(id)?.value.trim(); const n=g("fd-n"); if(!n&&!g("fd-k")){toast("Напиши, что съел, и калории");return}
-    const x=day(d.day); x.food=x.food||[]; x.food.push({id:uid(),n:n||"Приём пищи",k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))}); saveDay(d.day)},
+    const x=day(d.day); x.food=x.food||[]; x.food.push({id:uid(),n:n||"Приём пищи",k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))}); saveDay(d.day); toast("Записано: "+(n||"Приём пищи"))},
   delFood:d=>{const x=day(d.day); x.food=(x.food||[]).filter(f=>f.id!==d.id); saveDay(d.day)},
   recipeAdd:d=>{const R=recipeCalc(+d.v),t=R.t; const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:R.label,k:Math.round(t.k),p:Math.round(t.p),f:Math.round(t.f),c:Math.round(t.c)}); saveDay(UI.day); toast("Добавлено: "+R.r.n)},
   rsel:d=>{const m=UI.rsel[d.r]||(UI.rsel[d.r]={}); m[d.i]=+d.v},
@@ -1388,11 +1421,11 @@ function applyTheme(){ const th=S.meta.settings?.theme||"dark"; document.documen
   if(!ac||S.meta.settings.gm.accent==="lime"){ ["--accent","--hl","--accent-soft","--glow","--green","--green-soft"].forEach(v=>st.removeProperty(v)); return }
   const hl=light?ac.hlL:ac.a; st.setProperty("--accent",ac.a); st.setProperty("--hl",hl); st.setProperty("--green",hl); st.setProperty("--accent-soft",hexA(ac.a,.14)); st.setProperty("--green-soft",hexA(ac.a,.16)); st.setProperty("--glow",hexA(ac.a,light?.22:.12)) }
 try{ matchMedia("(prefers-color-scheme: light)").addEventListener("change",applyTheme) }catch(e){}
-window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(TABS.some(t=>t[0]===h)){UI.tab=h; render()} });
+window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(h==="week"){ UI.tab="today"; UI.todayMode="week"; render() } else if(TABS.some(t=>t[0]===h)){UI.tab=h; render()} });
 
 /* ---------- запуск ---------- */
 async function boot(){
-  const h=location.hash.slice(1); if(TABS.some(t=>t[0]===h)) UI.tab=h;
+  const h=location.hash.slice(1); if(h==="week"){ UI.tab="today"; UI.todayMode="week" } else if(TABS.some(t=>t[0]===h)) UI.tab=h;
   const C=window.claude; let db=null,user=null;
   if(C&&C.use){ [db,user]=await Promise.all([C.use("db"),C.use("user")]) }
   if(user){ let own=true; try{ own=await user.isOwner() }catch(e){} if(!own){ Store.mode="locked"; $("#tabs").innerHTML=""; $("#app").innerHTML='<div class="lock"><div class="stack"><h1>Личное приложение</h1><p class="muted">Это приложение работает только для своего владельца.</p></div></div>'; return } }
