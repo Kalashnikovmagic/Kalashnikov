@@ -746,7 +746,7 @@ function render(){
   if(Store.mode==="locked") return; GMC=null;
   const ae=document.activeElement; const fid=ae&&ae.id&&document.getElementById("app").contains(ae)?ae.id:null; let ss=null,se=null; try{ss=ae.selectionStart;se=ae.selectionEnd}catch(e){}
   const v=({today:vTodayTab,train:vTrain,food:vFoodTab,progress:vProgressTab,more:vMore}[UI.tab]||vTodayTab)();
-  $("#app").innerHTML=v;
+  $("#app").innerHTML=(UI.newVer?`<div class="banner row between" style="flex-wrap:nowrap"><span><b>Вышло обновление.</b> Нажми, чтобы загрузить новую версию.</span><button class="btn-primary btn-sm" data-a="hardUpdate">Обновить</button></div>`:"")+v;
   $("#tabs").innerHTML=TABS.map(([id,l,ic])=>`<button data-a="tab" data-v="${id}" ${UI.tab===id?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ic}</svg>${l}</button>`).join("");
   renderSheet(); renderRest(); setTimeout(checkGame,0);
   if(fid){ const el=document.getElementById(fid); if(el){ el.focus({preventScroll:true}); try{ if(ss!=null) el.setSelectionRange(ss,se) }catch(e){} } }
@@ -1167,6 +1167,8 @@ function vSettings(){
   <div class="eyebrow">Telegram</div>
   ${vTelegram()}
   <div class="eyebrow">Данные</div>
+  <section class="card"><h2>Версия приложения</h2><p class="small muted" style="margin:0">${APP_VER.startsWith("__")?"Тестовая сборка":"Сборка от "+new Date(+APP_VER*1000).toLocaleString("ru-RU",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})}. Приложение само проверяет обновления при открытии.</p>
+   <div class="row"><button class="grow" data-a="checkUpd">Проверить обновления</button><button class="grow" data-a="hardUpdate">Перезагрузить</button></div></section>
   <section class="card"><h2>Резервная копия</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
    ${Store.downloads||Store.mode==="local"?`<button data-a="export">Скачать резервную копию (JSON)</button>`:""}
    <label class="btn" for="import-in">Восстановить из копии</label><input id="import-in" type="file" accept="application/json,.json" hidden data-c="import"></section>`;
@@ -1244,6 +1246,12 @@ function renderRest(){
   el.innerHTML=`<div class="restbar"><div class="in"><span class="t">${left>0?mmss(left):"Пора!"}</span><div class="bar"><i style="width:${Math.max(0,left/rest.total*100)}%"></i></div><button class="btn-sm" data-a="restAdd">+30</button><button class="btn-sm" data-a="restStop">Стоп</button></div></div>`;
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
+// Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
+const APP_VER="1794160062";
+async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
+  try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
+  catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
+async function hardUpdate(){ try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); const regs=await navigator.serviceWorker?.getRegistrations(); await Promise.all((regs||[]).map(r=>r.update().catch(()=>{}))) }catch(e){} location.reload() }
 const TG={get(){ try{ return JSON.parse(localStorage.getItem("zh_tg")||"{}") }catch(e){ return {} } }, set(v){ try{ localStorage.setItem("zh_tg",JSON.stringify(v)) }catch(e){} }};
 // POST с form-urlencoded — «простой» запрос без предварительной проверки CORS, Telegram его принимает
 async function tgCall(token,method,params){ const r=await fetch("https://api.telegram.org/bot"+token+"/"+method,{method:"POST",body:new URLSearchParams(params||{})}); return r.json() }
@@ -1391,6 +1399,7 @@ const ACT={
   photoAsk:()=>{ UI.sheet.confirm=true }, photoNo:()=>{ UI.sheet.confirm=false },
   photoDel:async()=>{ const {k,i}=UI.sheet, e=S.body[k]; if(!e?.photos) return; const [id]=e.photos.splice(i,1); if(!e.photos.length) delete e.photos;
     if(Store.assets&&id&&!id.startsWith("data:")){ try{ await Store.assets.delete(id) }catch(x){} } save("body",k); UI.sheet=null; toast("Фото удалено"); render(); return false },
+  hardUpdate:()=>{ toast("Загружаю новую версию…"); hardUpdate(); return false }, checkUpd:()=>{ checkUpdate(true); return false },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
@@ -1427,7 +1436,7 @@ document.addEventListener("click",ev=>{ if(!audioCtx){ try{audioCtx=new (window.
 document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); if(!t) return; const r=CHG[t.dataset.c]?.(t.dataset,t); if(!(r instanceof Promise)) render() });
 document.addEventListener("input",ev=>{ const t=ev.target.closest("[data-i]"); if(!t) return; INP[t.dataset.i]?.(t.dataset,t) });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&UI.sheet){UI.sheet=null;render();return} if(ev.key!=="Enter") return; const t=ev.target.closest("[data-enter]"); if(!t) return; ev.preventDefault(); ACT[t.dataset.enter](t.dataset,t,ev); render() });
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ if(activeWorkout()) keepAwake(); GMC=null; applyFreezes(); render(); tgBackup(false).then(()=>tgWeekly(false)) } });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ if(activeWorkout()) keepAwake(); checkUpdate(false); GMC=null; applyFreezes(); render(); tgBackup(false).then(()=>tgWeekly(false)) } });
 function applyTheme(){ const th=S.meta.settings?.theme||"dark"; document.documentElement.setAttribute("data-theme",th);
   const light=th==="light"||(th==="auto"&&matchMedia("(prefers-color-scheme: light)").matches); document.querySelector('meta[name="theme-color"]')?.setAttribute("content",light?"#EEEAE1":"#050505");
   const ac=ACCENTS[S.meta.settings?.gm?.accent], st=document.documentElement.style;
@@ -1455,7 +1464,7 @@ async function boot(){
       },err=>toast("Нет связи с хранилищем: "+(err?.code||"ошибка")+". Обнови страницу."));
     }
   } else {
-    Store.mode="local"; try{ navigator.storage?.persist?.() }catch(e){} for(const c of COLLS){ try{ const v=localStorage.getItem("zh_"+c); if(v) S[c]=JSON.parse(v) }catch(e){} } applyTheme(); migrate(); render(); applyFreezes(); setTimeout(()=>tgBackup(false).then(()=>tgWeekly(false)),3000);
+    Store.mode="local"; try{ navigator.storage?.persist?.() }catch(e){} for(const c of COLLS){ try{ const v=localStorage.getItem("zh_"+c); if(v) S[c]=JSON.parse(v) }catch(e){} } applyTheme(); migrate(); render(); applyFreezes(); setTimeout(()=>checkUpdate(false),1500); setTimeout(()=>tgBackup(false).then(()=>tgWeekly(false)),3000);
   }
 }
 boot();
