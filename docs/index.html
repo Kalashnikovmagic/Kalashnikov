@@ -545,7 +545,7 @@ function vLogger(id){
     <label class="field">Минут<input id="cardio-min-${id}" type="number" inputmode="numeric" value="${esc(w.cardio?.min??15)}" data-c="cardioMin" data-id="${id}"></label></section>
   <section class="card"><div class="check ${w.stretch?"done":""}">${box(w.stretch,`data-a="wFlag" data-id="${id}" data-f="stretch" aria-label="Заминка"`)}<span class="txt">Заминка и растяжка</span></div>
     <label class="field">Заметка к тренировке<textarea id="wnote-${id}" data-i="wNote" data-id="${id}" placeholder="Самочувствие, что поменять в следующий раз">${esc(w.note||"")}</textarea></label></section>
-  <div class="stack">${fin?`<button data-a="saveProg" data-id="${id}">Сохранить как свою программу</button><button class="btn-danger" data-a="sheet" data-v="delW">Удалить тренировку</button>`:
+  <div class="stack">${fin?`<button data-a="reportPreview" data-id="${id}">Отчёт-картинка для сториз</button><button data-a="saveProg" data-id="${id}">Сохранить как свою программу</button><button class="btn-danger" data-a="sheet" data-v="delW">Удалить тренировку</button>`:
     `<button class="btn-primary" data-a="finishW" data-id="${id}">Завершить тренировку</button><button class="btn-ghost" data-a="sheet" data-v="delW">Отменить и удалить</button>`}</div>`;
 }
 function vExList(id,w){ let n=0,out=""; for(let i=0;i<w.ex.length;i++){ const e=w.ex[i], p=partner(w,e); n++;
@@ -702,12 +702,57 @@ function vCoach(){
   <div class="row">${["Где пора прибавить вес?","Разбери мою прошлую тренировку","Что поесть до тренировки?"].map(q=>`<button class="chip" data-a="ask" data-v="${q}">${q}</button>`).join("")}</div>
   <div class="add"><textarea id="coach-q" placeholder="Твой вопрос" style="min-height:44px"></textarea><button class="btn-primary" data-a="ask" ${UI.chatBusy||!Store.sample?"disabled":""}>${UI.chatBusy?"…":"Спросить"}</button></div>`;
 }
-function tgReport(id){ const t=TG.get(); if(t.report===false||!t.chat) return; const w=S.workouts[id]; const B=bests(id); const lines=[];
-  for(const e of w.ex){ const ds=doneSets(e); if(!ds.length) continue; const prs=ds.filter(x=>isPR(e.exId,x,B[e.exId])); const prev=prevFor(e.exId,id); const c=topOf(e.exId,ds), pv=prev?topOf(e.exId,prev.sets):null;
-    const dlt=c&&pv&&c.u===pv.u&&c.v!==pv.v?` (${c.v>pv.v?"+":""}${fmtN(c.v-pv.v)}${unitTxt(c.u)})`:"";
-    lines.push(`${prs.length?"★ ":"• "}${exName(e.exId)}: ${ds.map(x=>num(x.w)?fmtN(num(x.w))+"×"+(x.r||"?"):(x.r||"?")).join(", ")}${dlt}`) }
-  const min=Math.round((w.finishedAt-w.startedAt)/60000);
-  tgSend(`${w.title} — ${fmtD(w.date)}\n${min} мин · ${wSets(w)} подходов · ${fmtN(wVolume(w)/1000)} т\n\n${lines.join("\n")}${lines.some(l=>l.startsWith("★"))?"\n\n★ — новый рекорд":""}`) }
+// Данные отчёта: по тренировке из истории или пример, если тренировок ещё нет
+function reportData(w,id){ const B=bests(id); const rows=[];
+  for(const e of w.ex){ const ds=doneSets(e); if(!ds.length) continue; const prs=ds.filter(x=>isPR(e.exId,x,B[e.exId])).length; const prev=prevFor(e.exId,id); const c=topOf(e.exId,ds), pv=prev?topOf(e.exId,prev.sets):null;
+    const dv=c&&pv&&c.u===pv.u?c.v-pv.v:0;
+    rows.push({n:exName(e.exId),sets:ds.map(x=>num(x.w)?fmtN(num(x.w))+"×"+(x.r||"?"):(x.r||"?")).join("  ·  "),delta:dv?(dv>0?"+":"")+fmtN(dv)+(c.u==="кг"?" кг":" повт."):"",up:dv>0&&!EX[e.exId]?.assist||dv<0&&EX[e.exId]?.assist,pr:prs>0}) }
+  return {title:w.title,date:fmtD(w.date)+" "+parseYmd(w.date).getFullYear(),min:Math.max(1,Math.round(((w.finishedAt||Date.now())-(w.startedAt||Date.now()))/60000)),sets:wSets(w),vol:wVolume(w)/1000,rows,prs:rows.filter(r=>r.pr).length} }
+function demoReport(){ return {title:"FullBody A",date:fmtD(todayKey())+" "+new Date().getFullYear()+" · пример",min:68,sets:30,vol:9.4,prs:2,rows:[
+  {n:"Сгибания ног в тренажёре",sets:"70×8  ·  70×8  ·  70×7  ·  70×7",delta:"",up:false},{n:"Разгибания ног в тренажёре",sets:"70×8  ·  70×8  ·  70×8  ·  70×8",delta:"+5 кг",up:true},
+  {n:"Жим ногами",sets:"160×8  ·  160×8  ·  160×7  ·  160×7",delta:"+10 кг",up:true,pr:true},{n:"Жим на плечи в тренажёре",sets:"35×8  ·  35×8  ·  35×7  ·  35×6",delta:"",up:false},
+  {n:"Тяга сидя (нижний блок)",sets:"60×8  ·  60×8  ·  60×8  ·  60×7",delta:"",up:false},{n:"Жим гантелей на наклонной скамье",sets:"26×7  ·  26×7  ·  24×8  ·  24×8",delta:"+2 кг",up:true,pr:true},
+  {n:"Скотт в тренажёре",sets:"40,5×8  ·  40,5×8  ·  40,5×7  ·  40,5×6",delta:"",up:false},{n:"Разгибания рук с верёвкой из-за головы",sets:"23,75×8  ·  23,75×8  ·  23,75×8",delta:"",up:false},
+  {n:"Подъём коленей в висе",sets:"15  ·  13  ·  12",delta:"+2 повт.",up:true}]} }
+// Картинка 1080×1920 (9:16, формат сториз) в цветах приложения
+async function reportImage(R){ try{ await Promise.all(['600 120px Oswald','500 40px Oswald','500 40px "Golos Text"','600 40px "Golos Text"'].map(f=>document.fonts.load(f))) }catch(e){}
+  const W=1080,H=1920,c=document.createElement("canvas"); c.width=W; c.height=H; const g=c.getContext("2d");
+  const LIME="#D8FD3E",BONE="#EEEAE1",MUTE="#8D8D87",CARD="#121212",LINE="rgba(238,234,225,.16)",P=72;
+  const rr=(x,y,w,h,r)=>{ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath() };
+  const fit=(t,max)=>{ if(g.measureText(t).width<=max) return t; while(t.length>1&&g.measureText(t+"…").width>max) t=t.slice(0,-1); return t+"…" };
+  const sp=(v)=>{ try{ g.letterSpacing=v }catch(e){} };
+  g.fillStyle="#050505"; g.fillRect(0,0,W,H);
+  let gr=g.createRadialGradient(W*.95,-60,0,W*.95,-60,W*.95); gr.addColorStop(0,"rgba(216,253,62,.30)"); gr.addColorStop(1,"rgba(216,253,62,0)"); g.fillStyle=gr; g.fillRect(0,0,W,H);
+  gr=g.createRadialGradient(0,H+80,0,0,H+80,W*.8); gr.addColorStop(0,"rgba(216,253,62,.10)"); gr.addColorStop(1,"rgba(216,253,62,0)"); g.fillStyle=gr; g.fillRect(0,0,W,H);
+  let y=170; g.textBaseline="alphabetic";
+  sp("8px"); g.fillStyle=LIME; g.font='600 32px "Golos Text",sans-serif'; g.fillText("KALASHNIKOV",P,y); sp("0px");
+  g.fillStyle=MUTE; g.font='500 32px "Golos Text",sans-serif'; g.textAlign="right"; g.fillText(R.date,W-P,y); g.textAlign="left";
+  // заголовок: до двух строк, при необходимости уменьшаем
+  let fs=132; const words=R.title.toUpperCase().split(" "); let lines;
+  for(;fs>=80;fs-=8){ g.font=`600 ${fs}px Oswald,Impact,sans-serif`; lines=[]; let cur=""; for(const wd of words){ const t=cur?cur+" "+wd:wd; if(g.measureText(t).width>W-2*P&&cur){ lines.push(cur); cur=wd } else cur=t } lines.push(cur); if(lines.length<=2) break }
+  y+=fs*1.05; g.fillStyle=BONE; for(const l of lines){ g.fillText(l,P,y); y+=fs*.98 } y+=10;
+  if(R.prs){ g.font='600 34px "Golos Text",sans-serif'; const t=`★  ${R.prs} ${R.prs===1?"новый рекорд":R.prs<5?"новых рекорда":"новых рекордов"}`; const tw=g.measureText(t).width+56; rr(P,y,tw,70,35); g.fillStyle=LIME; g.fill(); g.fillStyle="#050505"; g.fillText(t,P+28,y+47); y+=110 } else y+=30;
+  // три плитки
+  const gap=22, tw=(W-2*P-2*gap)/3, th=210; [[R.min,"минут"],[R.sets,"подходов"],[fmtN(R.vol),"тонн объём"]].forEach(([v,l],i)=>{ const x=P+i*(tw+gap); rr(x,y,tw,th,30); g.fillStyle=CARD; g.fill(); g.strokeStyle=LINE; g.lineWidth=2; g.stroke();
+    g.fillStyle=BONE; g.font='600 92px Oswald,Impact,sans-serif'; g.fillText(String(v),x+30,y+118); g.fillStyle=MUTE; g.font='500 30px "Golos Text",sans-serif'; g.fillText(l,x+30,y+168) }); y+=th+40;
+  // список упражнений
+  const listTop=y, listBottom=H-170, n=Math.max(1,R.rows.length), rowH=Math.min(150,(listBottom-listTop-40)/n);
+  rr(P,listTop,W-2*P,rowH*n+40,34); g.fillStyle=CARD; g.fill(); g.strokeStyle=LINE; g.stroke();
+  const nameF=Math.min(40,rowH*.33), setF=Math.min(34,rowH*.28);
+  R.rows.forEach((r,i)=>{ const top=listTop+20+i*rowH, x=P+36, right=W-P-36;
+    if(i) { g.strokeStyle=LINE; g.lineWidth=2; g.beginPath(); g.moveTo(x,top); g.lineTo(right,top); g.stroke() }
+    g.font=`600 ${setF+4}px Oswald,Impact,sans-serif`; const dw=r.delta?g.measureText(r.delta).width:0;
+    if(r.delta){ g.fillStyle=r.up?LIME:MUTE; g.textAlign="right"; g.fillText(r.delta,right,top+rowH*.46); g.textAlign="left" }
+    g.fillStyle=r.pr?LIME:BONE; g.font=`600 ${nameF}px "Golos Text",sans-serif`; g.fillText(fit((r.pr?"★ ":"")+r.n,right-x-dw-24),x,top+rowH*.44);
+    g.fillStyle=MUTE; g.font=`500 ${setF}px Oswald,Impact,sans-serif`; g.fillText(fit(r.sets,right-x),x,top+rowH*.80) });
+  if(!R.rows.length){ g.fillStyle=MUTE; g.font='500 36px "Golos Text",sans-serif'; g.fillText("Подходы не отмечены",P+36,listTop+80) }
+  g.fillStyle=MUTE; g.font='500 28px "Golos Text",sans-serif'; g.fillText(R.prs?"★ — личный рекорд":"Отчёт о тренировке",P,H-100); g.textAlign="right"; g.fillStyle=LIME; g.fillText("KALASHNIKOV",W-P,H-100); g.textAlign="left";
+  return new Promise(res=>c.toBlob(res,"image/png")) }
+async function tgPhoto(blob,caption){ const t=TG.get(); if(!t.token||!t.chat) return false; try{ const fd=new FormData(); fd.append("chat_id",t.chat); fd.append("caption",caption||""); fd.append("photo",blob,"kalashnikov-report.png");
+  return (await (await fetch("https://api.telegram.org/bot"+t.token+"/sendPhoto",{method:"POST",body:fd})).json()).ok }catch(e){ return false } }
+async function tgReport(id){ const t=TG.get(); if(t.report===false||!t.on||!t.chat) return; const w=S.workouts[id], R=reportData(w,id);
+  let ok=false; try{ ok=await tgPhoto(await reportImage(R),`${R.title} — ${R.date}: ${R.min} мин, ${R.sets} подходов, ${fmtN(R.vol)} т`) }catch(e){}
+  if(!ok) tgSend(`${R.title} — ${R.date}\n${R.min} мин · ${R.sets} подходов · ${fmtN(R.vol)} т\n\n${R.rows.map(r=>(r.pr?"★ ":"• ")+r.n+": "+r.sets+(r.delta?" ("+r.delta+")":"")).join("\n")}`) }
 async function tgBackup(force){ const t=TG.get(); if(!t.token||!t.chat||(!force&&(t.backup===false||(t.backupAt&&Date.now()-t.backupAt<7*864e5)))) return false;
   try{ const fd=new FormData(); fd.append("chat_id",t.chat); fd.append("caption","Резервная копия Kalashnikov за "+fmtD(todayKey())+". Восстановить: «Ещё» → «Настройки» → «Восстановить из копии».");
     fd.append("document",new Blob([JSON.stringify({meta:S.meta,weeks:S.weeks,workouts:S.workouts,body:S.body})],{type:"application/json"}),"kalashnikov-"+todayKey()+".json");
@@ -733,7 +778,8 @@ function vTelegram(){ const t=TG.get();
      :`<div class="check">${box(t.on,'data-a="tgToggle" aria-label="Присылать сигнал в Telegram"')}<span class="txt">Присылать сигнал об окончании отдыха${t.name?` <span class="muted small">· чат: ${esc(t.name)}</span>`:""}</span></div>
        <div class="check">${box(t.report!==false,'data-a="tgOpt" data-k="report" aria-label="Отчёт после тренировки"')}<span class="txt">Отчёт после тренировки <span class="muted small">· подходы, объём, рекорды</span></span></div>
        <div class="check">${box(t.backup!==false,'data-a="tgOpt" data-k="backup" aria-label="Резервная копия раз в неделю"')}<span class="txt">Резервная копия раз в неделю <span class="muted small">· ${t.backupAt?"последняя "+fmtDs(ymd(new Date(t.backupAt))):"ещё не было"}</span></span></div>
-       <div class="row"><button class="grow" data-a="tgTest">Отправить проверку</button><button class="grow" data-a="tgBackupNow">Копию сейчас</button></div>`}`}
+       <div class="row"><button class="grow" data-a="tgTest">Отправить проверку</button><button class="grow" data-a="tgBackupNow">Копию сейчас</button></div>
+       <button data-a="reportPreview">Пробный отчёт-картинка</button>`}`}
   </section>`;
 }
 function vSettings(){
@@ -773,6 +819,9 @@ function renderSheet(){
     const g=EX[e.exId]?.g, pairG=(SS_RULES.find(r=>r.includes(g))||[]).find(x=>x!==g); const list=w.ex.filter(x=>x.id!==e.id&&!x.ss).sort((a,b)=>(EX[b.exId]?.g===pairG)-(EX[a.exId]?.g===pairG));
     body=`<h2>Суперсерия с «${esc(exName(e.exId))}»</h2><p class="small muted" style="margin:0">${pairG?`По твоей схеме ${g.toLowerCase()} идёт в паре с группой «${pairG}» — такие упражнения наверху.`:"Выбери второе упражнение из этой тренировки."}</p>
      ${list.length?list.map(x=>{const hit=EX[x.exId]?.g===pairG; return `<button class="pick" data-a="doSs" data-ex="${x.id}"><span>${esc(exName(x.exId))}</span><span class="small" style="color:${hit?"var(--accent)":"var(--muted)"}">${EX[x.exId]?.g||""}</span></button>`}).join(""):'<div class="empty">Свободных упражнений нет. Сначала добавь второе упражнение в тренировку.</div>'}` }
+  else if(sh.type==="report"){ const t=TG.get(); body=`<h2>Отчёт для сториз</h2>${sh.url?`<img src="${sh.url}" alt="Отчёт о тренировке" style="width:100%;max-width:360px;align-self:center;border-radius:14px;border:1px solid var(--line)">`:'<div class="empty">Рисую картинку…</div>'}
+     <p class="small muted" style="margin:0">1080 × 1920, формат сториз. Чтобы сохранить на телефон, зажми картинку → «Сохранить в Фото».</p>
+     ${t.token&&t.chat?`<button class="btn-primary" data-a="reportSend">Отправить в Telegram</button>`:'<p class="small" style="margin:0">Подключи бота в «Настройках», чтобы отправлять отчёт в Telegram.</p>'}` }
   else if(sh.type==="delW"){ body=`<h2>Удалить тренировку?</h2><p class="muted" style="margin:0">Подходы и веса этой тренировки пропадут из истории и статистики.</p><div class="row"><button class="grow" data-a="sheetClose">Оставить</button><button class="grow btn-danger" data-a="delW">Удалить</button></div>` }
   else if(sh.type==="saveProg"){ body=`<h2>Сохранить как программу</h2><input id="prog-name" placeholder="Название, например «Верх тела»" value="${esc(sh.name||"")}" data-i="progName"><button class="btn-primary" data-a="doSaveProg">Сохранить</button>` }
   el.innerHTML=`<div class="sheet-bg" data-a="sheetBg"><div class="sheet" role="dialog" aria-modal="true"><div class="row between"><span></span><button class="icon-btn" data-a="sheetClose" aria-label="Закрыть">×</button></div>${body}</div></div>`;
@@ -895,6 +944,9 @@ const ACT={
   addRec:()=>{ const v=(document.getElementById("rec-text")?.value||"").trim(); const days=UI.recDays||[]; if(!v||!days.length){ toast("Напиши задачу и выбери дни"); return }
     const st=settings(); st.recurring=st.recurring||[]; st.recurring.push({id:"r"+uid(),text:v,days,from:todayKey()}); save("meta","settings"); UI.recDays=[]; toast("Задача будет появляться сама") },
   delRec:d=>{ const st=settings(); st.recurring=(st.recurring||[]).filter(r=>r.id!==d.id); save("meta","settings") },
+  reportPreview:async d=>{ const w=d.id?S.workouts[d.id]:finished().slice(-1)[0]; const R=w?reportData(w,d.id||w.id):demoReport(); if(UI.sheet?.url) URL.revokeObjectURL(UI.sheet.url);
+    UI.sheet={type:"report",R}; render(); const blob=await reportImage(R); UI.reportBlob=blob; UI.sheet={type:"report",R,url:URL.createObjectURL(blob)}; renderSheet(); return false },
+  reportSend:async()=>{ if(!UI.reportBlob) return false; toast("Отправляю…"); const R=UI.sheet.R; const ok=await tgPhoto(UI.reportBlob,`${R.title} — ${R.date}`); toast(ok?"Отчёт отправлен в Telegram":"Не отправилось. Проверь интернет и бота."); return false },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
