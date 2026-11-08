@@ -480,13 +480,13 @@ const ICON={
 const ROMAN=["","I","II","III"];
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
 const plural=(n,a,b2,c)=>{const m=n%10,h=n%100; return m===1&&h!==11?a:m>=2&&m<=4&&(h<12||h>14)?b2:c};
-const GM_LEVELS=[[0,"Новичок"],[500,"Любитель"],[2000,"Атлет"],[5000,"Машина"],[12000,"Легенда"],[25000,"Титан"]];
+const GM_LEVELS=[[0,"Новичок"],[1000,"Любитель"],[5000,"Атлет"],[15000,"Машина"],[35000,"Легенда"],[70000,"Титан"]];
 function gm(){ const st=settings(); if(!st.gm) st.gm={goal:50,freezes:2,used:[],lastEarn:"",ach:null,cel:{},level:null}; const g=st.gm;
-  g.chests??=0; g.boss??={}; g.trophies??=[]; g.chall??={}; g.accents??=["lime"]; g.accent??="lime"; g.bonus??={}; g.double??=[]; return g }
+  g.chests??=0; g.boss??={}; g.trophies??=[]; g.chall??={}; g.accents??=["lime"]; g.accent??="lime"; g.bonus??={}; g.double??=[]; if(!g.v3){ g.v3=1; if(!(g.goal>=100)) g.goal=100 } return g }
 let GMC=null; // кэш расчётов на один рендер
-function gmCache(){ if(GMC) return GMC; const prs={}, byDate={};
-  for(const w of finished()){ const B=bests(w.id,w.date); let n=0; for(const e of w.ex) for(const x of doneSets(e)) if(isPR(e.exId,x,B[e.exId])) n++; prs[w.id]=n; (byDate[w.date]=byDate[w.date]||[]).push(w) }
-  GMC={prs,byDate,xp:{},total:null}; return GMC }
+function gmCache(){ if(GMC) return GMC; const prs={}, prx={}, byDate={};
+  for(const w of finished()){ const B=bests(w.id,w.date); let n=0, ne=0; for(const e of w.ex){ let hit=false; for(const x of doneSets(e)) if(isPR(e.exId,x,B[e.exId])){ n++; hit=true } if(hit) ne++ } prs[w.id]=n; prx[w.id]=ne; (byDate[w.date]=byDate[w.date]||[]).push(w) }
+  GMC={prs,prx,byDate,xp:{},total:null}; return GMC }
 const foodSum=d=>(d?.food||[]).reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p)}),{k:0,p:0});
 // Норма дня считается выполненной, если: калории 90–105% цели, белок не меньше 90%, жиры 80–125%. Углеводы — свободные (это остаток)
 const KBJU_RULES=[{k:"k",n:"Калории",lo:.9,hi:1.05},{k:"p",n:"Белки",lo:.9,hi:null},{k:"f",n:"Жиры",lo:.8,hi:1.25},{k:"c",n:"Углеводы",lo:0,hi:null,free:true}];
@@ -506,9 +506,13 @@ const QUESTS=[
 // Три квеста дня: набор зависит только от даты, поэтому не меняется в течение дня
 function questsFor(k){ let h=7; for(const ch of k) h=(h*31+ch.charCodeAt(0))>>>0; const arr=QUESTS.filter(q=>q.ok()), out=[];
   while(out.length<3&&arr.length){ h=(Math.imul(h,1103515245)+12345)>>>0; out.push(arr.splice(h%arr.length,1)[0]) } return out.map(q=>({id:q.id,t:q.t,done:q.done(k)})) }
-function xpParts(k){ const C=gmCache(), d=peekDay(k), ws=C.byDate[k]||[];
-  return {sets:ws.reduce((a,w)=>a+wSets(w),0)*2, workouts:ws.length*50, prs:ws.reduce((a,w)=>a+C.prs[w.id],0)*25, habits:settings().habits.filter(h=>d?.habits?.[h.id]).length*10,
-    tasks:(d?.tasks||[]).filter(t=>t.done).length*5, kbju:kbjuOk(d)?20:0, quests:questsFor(k).every(q=>q.done)?30:0, perfect:ws.filter(perfectW).length*30, gold:goldenDay(k)?25:0} }
+// Опыт за день. Привычка из блоков: 4 за блок + 5 за весь набор. Задачи — максимум 5 в зачёт. Рекорд — за упражнение, не больше 3 за тренировку
+function bodyXpDay(k){ const has=x=>num(S.body[x]?.weight)||num(S.body[x]?.waist); if(!has(k)) return false; for(let i=1;i<7;i++) if(has(ymd(addDays(parseYmd(k),-i)))) return false; return true }
+function xpParts(k){ const C=gmCache(), d=peekDay(k), ws=C.byDate[k]||[], t=settings().target, kb=kbjuOk(d);
+  const habits=settings().habits.reduce((a,h)=>{ const n=hParts(h); if(n>1){ const c=hpOf(d,h).filter(Boolean).length; return a+c*4+(c===n?5:0) } return a+(d?.habits?.[h.id]?10:0) },0);
+  return {workouts:ws.length*80, prs:ws.reduce((a,w)=>a+Math.min(3,C.prx[w.id]||0),0)*30, perfect:ws.filter(perfectW).length*30, habits,
+    tasks:Math.min(5,(d?.tasks||[]).filter(x=>x.done).length)*5, kbju:kb?50:0, protein:!kb&&t&&d?.food?.length&&foodSum(d).p>=t.p*0.9?15:0,
+    state:d?.sleep&&d.energy&&d.mood?10:0, body:bodyXpDay(k)?20:0, quests:questsFor(k).every(q=>q.done)?30:0, gold:goldenDay(k)?40:0} }
 function xpDay(k){ const C=gmCache(); if(C.xp[k]==null){ const g=gm(); const base=Object.values(xpParts(k)).reduce((a,b2)=>a+b2,0); C.xp[k]=base*(g.double.includes(k)?2:1)+(g.bonus[k]||0) } return C.xp[k] }
 // Золотой день: закрыто всё — привычки, задачи, квесты и (если задана норма) КБЖУ
 function goldenDay(k){ const d=peekDay(k); if(!d||!habitsAll(k)||(d.tasks||[]).some(t=>!t.done)||!questsFor(k).every(q=>q.done)) return false; return !settings().target||kbjuOk(d) }
@@ -577,7 +581,7 @@ function vSkills(){ const G=groupScores(), n=GROUPS.length, R=95, cx=150, cy=125
 const MON_NOM=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const ymOf=k=>k.slice(0,7), monthName=m=>MON_NOM[+m.slice(5,7)-1]+" "+m.slice(0,4);
 const monthDays=m=>allDays().filter(k=>k.startsWith(m));
-const seasonXp=m=>monthDays(m).reduce((a,k)=>a+xpDay(k),0), SEASON_STEP=100, seasonStep=m=>Math.min(30,Math.floor(seasonXp(m)/SEASON_STEP));
+const seasonXp=m=>monthDays(m).reduce((a,k)=>a+xpDay(k),0), SEASON_STEP=150, seasonStep=m=>Math.min(30,Math.floor(seasonXp(m)/SEASON_STEP));
 function monthHabit(m,re){ const h=settings().habits.find(x=>re.test(x.name)); return h?monthDays(m).filter(k=>peekDay(k)?.habits?.[h.id]).length:0 }
 const CHALL=[
   {id:"w12",n:"12 тренировок за месяц",goal:12,v:m=>finished().filter(w=>w.date.startsWith(m)).length},
@@ -623,7 +627,7 @@ const ACH=[
   {id:"perfect",n:"Идеал",d:"идеальных тренировок",tiers:[1,10,30],v:()=>finished().filter(perfectW).length},
   {id:"gold",n:"Золото",d:"золотых дней",tiers:[3,15,50],v:()=>allDays().filter(goldenDay).length},
   {id:"boss",n:"Охотник",d:"побеждённых боссов",tiers:[1,5,20],v:()=>gm().trophies.filter(x=>x.kind==="boss").length},
-  {id:"xp",n:"Опыт",d:"очков опыта",tiers:[1000,5000,15000],v:xpTotal}];
+  {id:"xp",n:"Опыт",d:"очков опыта",tiers:[2000,10000,40000],v:xpTotal}];
 function habitDays(re){ const h=settings().habits.find(h=>re.test(h.name)); return h?allDays().filter(k=>peekDay(k)?.habits?.[h.id]).length:0 }
 const tierOf=(a,v)=>a.tiers.filter(t=>v>=t).length;
 function celebrate(c){ UI.cele=[...(UI.cele||[]),c]; if(UI.cele.length===1) showCele() }
@@ -641,6 +645,7 @@ function checkGame(){ if(gmBusy||Store.mode==="locked") return; gmBusy=true; try
     const tiers=Object.fromEntries(ACH.map(a=>[a.id,tierOf(a,a.v())])), lvl=levelOf(xpTotal()).n;
     if(!g.ach){ g.ach=tiers; g.level=lvl; cel.streak=dayCounted(t)?1:0; cel.goal=xpDay(t)>=g.goal?1:0; cel.quests=questsFor(t).every(q=>q.done)?1:0; save("meta","settings"); return }
     for(const a of ACH){ if(tiers[a.id]>(g.ach[a.id]||0)) celebrate({icon:"medal",title:`${a.n} ${ROMAN[tiers[a.id]]}`,sub:`Новое достижение. ${cap(a.d)}: ${a.tiers[tiers[a.id]-1]}`,share:a.id}); if(tiers[a.id]!==(g.ach[a.id]||0)){ g.ach[a.id]=tiers[a.id]; ch=true } }
+    if(lvl<(g.level||1)){ g.level=lvl; ch=true } // уровень мог стать ниже после смены правил — без праздника
     if(lvl>(g.level||1)){ celebrate({icon:"up",title:`Новый уровень: ${levelOf(xpTotal()).name}`,sub:`${xpTotal()} очков опыта`}); g.level=lvl; ch=true }
     if(!cel.streak&&dayCounted(t)){ cel.streak=1; ch=true; const n=streakNow(); let earned=false; if(n>0&&n%7===0&&g.lastEarn!==t&&g.freezes<2){ g.freezes++; g.lastEarn=t; earned=true } if(n>0&&n%7===0&&g.chestFor!==t){ g.chests++; g.chestFor=t }
       celebrate({icon:"flame",title:`Серия: ${n} ${plural(n,"день","дня","дней")}`,sub:n>0&&n%7===0?`Неделя подряд: +1 сундук${earned?" и +1 заморозка":""}`:"День засчитан — так держать"}) }
@@ -689,11 +694,11 @@ function vAch(){ const g=gm(), X=xpTotal(), L=levelOf(X), n=streakNow(), best=be
     <section class="card"><h2>Испытания месяца</h2>${challengesFor(m).map(c=>{ const v=c.v(m), done=!!gm().chall[m+":"+c.id]||v>=c.goal; return `<div class="stack" style="gap:4px;padding:6px 0"><div class="row between small"><b>${c.n}</b><span class="${done?"chip up":"muted num"}">${done?"выполнено":`${Math.min(v,c.goal)} / ${c.goal}`}</span></div><div class="meter"><i style="width:${Math.min(100,v/c.goal*100)}%"></i></div></div>` }).join("")}
      <p class="small muted" style="margin:0">Каждый месяц — два новых испытания. За выполненное — сундук и значок в коллекцию.</p></section>` })()}
   <section class="card"><div class="row" style="flex-wrap:nowrap;gap:14px">${ICON.flame.replace("<svg",'<svg style="width:56px;height:56px;flex:none"')}<div class="grow stack" style="gap:4px"><h2>Серия: ${n} ${plural(n,"день","дня","дней")}</h2><div class="small muted">Лучшая: ${best} · ${g.freezes} ${plural(g.freezes,"заморозка","заморозки","заморозок")} из 2</div></div></div>
-    <p class="small muted" style="margin:0">День засчитывается, если была тренировка, закрыты все привычки или набрана цель дня по опыту. В день отдыха хватит привычек и задач: например, 3 привычки и 4 задачи — это 50 очков. Заморозка сама спасает пропущенный день, новая даётся за каждые 7 дней подряд.</p></section>
+    <p class="small muted" style="margin:0">День засчитывается, если была тренировка, закрыты все привычки или набрана цель дня по опыту. В день отдыха хватит привычек или закрытого питания: например, все привычки + КБЖУ в норме + записанное состояние — это больше 100 очков. Заморозка сама спасает пропущенный день, новая даётся за каждые 7 дней подряд.</p></section>
   <section class="card"><div class="row between"><h2>Опыт за неделю</h2><span class="chip ${cur>=prev?"up":"down"}">${cur>=prev?"+":"−"}${Math.abs(cur-prev)} к прошлой</span></div>
     ${barChart(bars,{fmt:v=>String(v)})}
-    <div class="row between small"><span class="muted">Цель дня</span><div class="seg" style="flex:0 0 auto">${[30,50,100].map(v=>`<button aria-pressed="${g.goal===v}" data-a="xpGoal" data-v="${v}" style="padding:6px 14px">${v}</button>`).join("")}</div></div>
-    <p class="small muted" style="margin:0">Очки: подход +2 · тренировка +50 · рекорд +25 · привычка +10 · задача +5 · КБЖУ в норме +20 · все квесты дня +30.</p></section>
+    <div class="row between small"><span class="muted">Цель дня</span><div class="seg" style="flex:0 0 auto">${[100,150,200].map(v=>`<button aria-pressed="${g.goal===v}" data-a="xpGoal" data-v="${v}" style="padding:6px 14px">${v}</button>`).join("")}</div></div>
+    <p class="small muted" style="margin:0">Очки: тренировка +80 · рекорд +30 за упражнение (до 3 за тренировку) · идеальная тренировка +30 · привычка +10, привычка из блоков +4 за блок и +5 за весь набор · задача +5 (до 5 в день) · КБЖУ в норме +50, только белок +15 · сон, энергия и настроение +10 · замер раз в неделю +20 · все квесты дня +30 · золотой день +40.</p></section>
   <section class="card"><div class="row" style="flex-wrap:nowrap;gap:14px"><span class="chest-anim" style="flex:none">${ICON.chest.replace("<svg",'<svg style="width:56px;height:56px"')}</span><div class="grow stack" style="gap:4px"><h2>Сундуки: ${g.chests}</h2><div class="small muted">Даются за неделю серии, босса, испытание месяца и каждые 5 ступеней сезона. Внутри: заморозка, двойной опыт, новый цвет оформления или бонус опыта.</div></div></div>
     ${g.chests?'<button class="btn-primary" data-a="chestSheet">Открыть сундук</button>':""}</section>
   ${g.trophies.length?`<section class="card"><h2>Коллекция</h2><div>${[...g.trophies].reverse().map(x=>`<div class="trophy">${x.kind==="boss"?ICON.boss:ICON.medal}<div class="grow"><b>${esc(x.title)}</b><div class="small muted">${fmtD(x.date)}</div></div></div>`).join("")}</div></section>`:""}
@@ -1317,7 +1322,7 @@ function renderRest(){
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794163009";
+const APP_VER="1794168660";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
