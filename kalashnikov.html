@@ -640,6 +640,21 @@ function vCoach(){
   <div class="row">${["Где пора прибавить вес?","Разбери мою прошлую тренировку","Что поесть до тренировки?"].map(q=>`<button class="chip" data-a="ask" data-v="${q}">${q}</button>`).join("")}</div>
   <div class="add"><textarea id="coach-q" placeholder="Твой вопрос" style="min-height:44px"></textarea><button class="btn-primary" data-a="ask" ${UI.chatBusy||!Store.sample?"disabled":""}>${UI.chatBusy?"…":"Спросить"}</button></div>`;
 }
+function vTelegram(){ const t=TG.get();
+  return `<section class="card"><div class="row between"><h2>Сигнал в Telegram</h2>${t.on&&t.chat?'<span class="chip up">Включён</span>':""}</div>
+   <p class="small muted" style="margin:0">Когда отдых закончится, твой бот пришлёт сообщение. Telegram показывает его на часах Huawei. Ключ бота хранится только в этом телефоне и не попадает в резервную копию.</p>
+   ${!t.token?`<ol class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+      <li>В Telegram открой <b>@BotFather</b>, отправь <b>/newbot</b>, придумай имя и адрес бота.</li>
+      <li>BotFather пришлёт ключ вида <span class="num">123456:ABC…</span> — скопируй его и вставь ниже.</li></ol>
+     <div class="add"><input id="tg-token" placeholder="Ключ бота от BotFather" autocomplete="off" autocapitalize="off" spellcheck="false"><button data-a="tgSave">Сохранить</button></div>`
+   :`<div class="row between small"><span>Бот: <b>${esc(t.bot?"@"+t.bot:"сохранён")}</b></span><button class="btn-ghost btn-sm" data-a="tgReset">Сменить бота</button></div>
+     ${!t.chat?`<p class="small" style="margin:0">Открой своего бота в Telegram, нажми <b>«Запустить»</b> (или отправь ему любое сообщение), потом вернись сюда и нажми кнопку.</p>
+       ${t.bot?`<a class="btn" href="https://t.me/${esc(t.bot)}" target="_blank" rel="noopener">Открыть @${esc(t.bot)} ↗</a>`:""}
+       <button class="btn-primary" data-a="tgFind">Найти мой чат</button>`
+     :`<div class="check">${box(t.on,'data-a="tgToggle" aria-label="Присылать сигнал в Telegram"')}<span class="txt">Присылать сигнал об окончании отдыха${t.name?` <span class="muted small">· чат: ${esc(t.name)}</span>`:""}</span></div>
+       <button data-a="tgTest">Отправить проверку</button>`}`}
+  </section>`;
+}
 function vSettings(){
   const s=settings(); const th=s.theme||"";
   return `<header><div class="eyebrow">Настройки</div><h1>Под себя</h1></header>
@@ -653,6 +668,7 @@ function vSettings(){
      :Notification.permission==="denied"?'<div class="banner">Уведомления запрещены. Разреши их: Настройки iPhone → Уведомления → Kalashnikov.</div>'
      :'<button class="btn-primary" data-a="notifyOn">Включить уведомления</button>'}
    ${canNotify()&&Notification.permission==="granted"?'<button data-a="notifyTest">Проверить: уведомление через 5 секунд</button>':""}</section>
+  ${vTelegram()}
   <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
    ${Store.downloads||Store.mode==="local"?`<button data-a="export">Скачать резервную копию (JSON)</button>`:""}
    <label class="btn" for="import-in">Восстановить из копии</label><input id="import-in" type="file" accept="application/json,.json" hidden data-c="import"></section>`;
@@ -696,13 +712,17 @@ function renderRest(){
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Уведомление iPhone → часы (Huawei Health пересылает уведомления из Центра уведомлений). На iOS работает в приложении с экрана «Домой», iOS 16.4+.
 const canNotify=()=>"Notification" in window;
+const TG={get(){ try{ return JSON.parse(localStorage.getItem("zh_tg")||"{}") }catch(e){ return {} } }, set(v){ try{ localStorage.setItem("zh_tg",JSON.stringify(v)) }catch(e){} }};
+// POST с form-urlencoded — «простой» запрос без предварительной проверки CORS, Telegram его принимает
+async function tgCall(token,method,params){ const r=await fetch("https://api.telegram.org/bot"+token+"/"+method,{method:"POST",body:new URLSearchParams(params||{})}); return r.json() }
+async function tgSend(text){ const t=TG.get(); if(!t.on||!t.token||!t.chat) return false; try{ return (await tgCall(t.token,"sendMessage",{chat_id:t.chat,text})).ok }catch(e){ return false } }
 async function notify(title,body){ if(!canNotify()||Notification.permission!=="granted") return false;
   const opts={body,tag:"rest",renotify:true,requireInteraction:false,icon:"icon-192.png?v=2",badge:"icon-192.png?v=2"};
   try{ const reg=await navigator.serviceWorker?.getRegistration(); if(reg){ await reg.showNotification(title,opts); return true } }catch(e){}
   try{ new Notification(title,opts); return true }catch(e){ return false } }
 function beep(){ try{ if(!audioCtx) return; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.value=880; g.gain.setValueAtTime(.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.6); o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+.6) }catch(e){} try{navigator.vibrate?.([200,100,200])}catch(e){} }
 setInterval(()=>{
-  if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep(); notify("Отдых окончен",rest.label?"Следующий подход: "+rest.label:"Пора на следующий подход") } if(left<=-3){ rest.end=0 } renderRest() }
+  if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep(); const msg=rest.label?"Следующий подход: "+rest.label:"Пора на следующий подход"; notify("Отдых окончен",msg); tgSend("Отдых окончен. "+msg) } if(left<=-3){ rest.end=0 } renderRest() }
   const el=document.getElementById("wk-el"); const id=UI.openWorkout||activeWorkout(); const w=id&&S.workouts[id]; if(el&&w&&!w.finishedAt) el.textContent=mmss((Date.now()-w.startedAt)/1000);
 },1000);
 let wakeLock=null; async function keepAwake(){ try{ wakeLock=await navigator.wakeLock?.request("screen") }catch(e){} }
@@ -786,6 +806,17 @@ const ACT={
   undoWork:d=>{const it=working().items[d.ex]; if(it?.h.length){ it.h.pop(); save("meta","working") }},
   notifyOn:async()=>{ try{ await Notification.requestPermission() }catch(e){} render(); if(Notification.permission==="granted") notify("Kalashnikov","Уведомления включены. Так будет выглядеть сигнал об окончании отдыха."); return false },
   notifyTest:()=>{ toast("Жди 5 секунд, приложение не закрывай"); setTimeout(()=>{ beep(); notify("Отдых окончен","Следующий подход: проверка уведомлений") },5000) },
+  tgSave:async()=>{ const token=(document.getElementById("tg-token")?.value||"").trim(); if(!/^\d+:[\w-]{20,}$/.test(token)){ toast("Это не похоже на ключ бота: он выглядит как 123456:ABC…"); return false }
+    try{ const j=await tgCall(token,"getMe"); if(!j.ok){ toast("Telegram не принял ключ. Скопируй его из BotFather целиком."); return false } TG.set({token,bot:j.result.username,on:true}); toast("Бот @"+j.result.username+" подключён") }
+    catch(e){ toast("Нет связи с Telegram. Проверь интернет и попробуй снова.") } render(); return false },
+  tgFind:async()=>{ const t=TG.get(); try{ const j=await tgCall(t.token,"getUpdates",{limit:"50"}); const ups=(j.result||[]).map(u=>u.message||u.edited_message).filter(m=>m&&m.chat&&m.chat.type==="private");
+      if(!ups.length){ toast("Сообщений боту пока нет. Открой бота, нажми «Запустить» и вернись."); return false }
+      const m=ups[ups.length-1]; TG.set({...t,chat:String(m.chat.id),name:[m.chat.first_name,m.chat.last_name].filter(Boolean).join(" ")||m.chat.username||"",on:true});
+      await tgSend("Готово! Сюда будут приходить сигналы об окончании отдыха из Kalashnikov."); toast("Чат найден, проверочное сообщение отправлено") }
+    catch(e){ toast("Нет связи с Telegram. Проверь интернет и попробуй снова.") } render(); return false },
+  tgToggle:()=>{ const t=TG.get(); TG.set({...t,on:!t.on}) },
+  tgTest:async()=>{ const ok=await tgSend("Отдых окончен. Следующий подход: проверка сигнала"); toast(ok?"Отправлено — проверь часы":"Не отправилось. Проверь интернет или включи сигнал галочкой выше."); return false },
+  tgReset:()=>{ TG.set({}) },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
