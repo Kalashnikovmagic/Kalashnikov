@@ -323,11 +323,14 @@ const RECIPES=[
   {n:"Курица или индейка с крупой",t:["Обед"],items:[{f:["chicken","turkey"],g:250,u:"250 г готовой, без масла"},{f:["rice","buckwheat","bulgur"],g:80,u:"80 г сухой"},{f:"veg",g:250}]},
   {n:"Творог с греческим йогуртом и ягодами",t:["Ужин"],items:[{f:"tvorog",g:200},{f:"greek",g:80},{f:["banana","nectarine"],g:120},{f:"whey",g:15},{f:"nuts",g:25}]},
 ];
-function recipeCalc(ri){ const r=RECIPES[ri], sc=UI.rscale?.[ri]||1, xs=r.unit?` — ${fmtN(sc)} ${r.unit}`:sc!==1?" ×"+fmtN(sc):"";
-  if(r.fixed) return {r,sc,lines:[],t:{k:r.fixed.k*sc,p:r.fixed.p*sc,f:r.fixed.f*sc,c:r.fixed.c*sc},label:r.n+xs}; const sel=UI.rsel[ri]||{}; const lines=r.items.map((it,ii)=>{const id=Array.isArray(it.f)?it.f[sel[ii]||0]:it.f; const fd=FOOD[id]; const g=it.g*sc, m=g/100;
+// Свои блюда и продукты хранятся в настройках: settings().myRecipes (список), settings().myFoods (продукты на 100 г)
+const allRecipes=()=>[...RECIPES,...(settings().myRecipes||[])];
+const foodById=id=>FOOD[id]||settings().myFoods?.[id]||{n:"Продукт удалён",k:0,p:0,f:0,c:0};
+function recipeCalc(ri){ const r=allRecipes()[ri], sc=UI.rscale?.[ri]||1, xs=r.unit?` — ${fmtN(sc)} ${r.unit}`:sc!==1?" ×"+fmtN(sc):"";
+  if(r.fixed) return {r,sc,lines:[],t:{k:r.fixed.k*sc,p:r.fixed.p*sc,f:r.fixed.f*sc,c:r.fixed.c*sc},label:r.n+xs}; const sel=UI.rsel[ri]||{}; const lines=r.items.map((it,ii)=>{const id=Array.isArray(it.f)?it.f[sel[ii]||0]:it.f; const fd=foodById(id); const g=num(it.g)*sc, m=g/100;
   return {ii,id,fd,g,u:sc===1?it.u:"",alts:Array.isArray(it.f)?it.f:null,k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m}});
   const t=lines.reduce((a,l)=>({k:a.k+l.k,p:a.p+l.p,f:a.f+l.f,c:a.c+l.c}),{k:0,p:0,f:0,c:0});
-  return {r,sc,lines,t,label:r.n+(lines.some(l=>l.alts)?" ("+lines.filter(l=>l.alts).map(l=>FOOD[l.id].n.split(" (")[0].toLowerCase()).join(", ")+")":"")+xs} }
+  return {r,sc,lines,t,label:r.n+(lines.some(l=>l.alts)?" ("+lines.filter(l=>l.alts).map(l=>foodById(l.id).n.split(" (")[0].toLowerCase()).join(", ")+")":"")+xs} }
 const ARTICLES=[
   {n:"Как устроены программы FullBody",b:["Каждая тренировка прорабатывает всё тело: ноги, спину, грудь, плечи, руки и пресс.","Порядок: 10 минут эллипса, силовой блок, пресс, 15 минут кардио, заминка.","Чередуй A → B → C. Приложение само подскажет, какая тренировка следующая.","Между тренировками нужен минимум день отдыха: 3 тренировки в неделю — рабочий ритм."]},
   {n:"Как прибавлять вес",b:["Работай в диапазоне повторов программы, например 6–8.","Когда во всех 4 подходах набрал верхнюю границу (8), в следующий раз добавь 2,5–5 кг.","Если после прибавки получается меньше нижней границы (6), оставь вес, пока снова не выйдешь на 8.","Колонка «Прошлый раз» в тренировке показывает, что ты делал в прошлый раз — старайся побить хотя бы один подход."]},
@@ -1016,18 +1019,19 @@ function vRecomp(r){
    <p class="small muted" style="margin:0">Рекомпозиция идёт, если вес стоит или снижается до 0,5% в неделю, талия уменьшается, а рабочие веса растут.</p></section>`;
 }
 function vRecipes(){
-  const tags=[...new Set(RECIPES.flatMap(r=>r.t))]; const k=UI.day;
+  const RS=allRecipes(), tags=[...new Set(RS.flatMap(r=>r.t))]; const k=UI.day;
   return `<header><div class="eyebrow">Питание</div><h1>Рецепты</h1></header>
-  <div class="row"><button class="chip" aria-pressed="${!UI.recipeTag}" data-a="rtag" data-v="">Все</button>${tags.map(t=>`<button class="chip" aria-pressed="${UI.recipeTag===t}" data-a="rtag" data-v="${t}">${t}</button>`).join("")}</div>
-  ${RECIPES.map((r,ri)=>[r,ri]).filter(([r])=>!UI.recipeTag||r.t.includes(UI.recipeTag)).map(([r,ri])=>{const R=recipeCalc(ri),t=R.t; return `<section class="card">
-   <div class="eyebrow" style="color:var(--hl)">${r.t.length>1?"Любой приём пищи":r.t[0]}</div>
+  <button class="btn-primary" data-a="recipeNew">+ Новое блюдо или продукт</button>
+  <div class="row"><button class="chip" aria-pressed="${!UI.recipeTag}" data-a="rtag" data-v="">Все</button><button class="chip" aria-pressed="${UI.recipeTag==="__my"}" data-a="rtag" data-v="__my">Мои</button>${tags.map(t=>`<button class="chip" aria-pressed="${UI.recipeTag===t}" data-a="rtag" data-v="${t}">${t}</button>`).join("")}</div>
+  ${RS.map((r,ri)=>[r,ri]).filter(([r])=>!UI.recipeTag||(UI.recipeTag==="__my"?r.my:r.t.includes(UI.recipeTag))).map(([r,ri])=>{const R=recipeCalc(ri),t=R.t; return `<section class="card">
+   <div class="row between"><span class="eyebrow" style="color:var(--hl)">${r.t.length>=3?"Любой приём пищи":r.t.join(" · ")}</span>${r.my?'<span class="chip">моё</span>':""}</div>
    <div class="row between"><h3>${r.n}</h3><span class="num" style="font-size:20px">${Math.round(t.k)} ккал</span></div>
    <div class="row small"><span class="chip">Б ${Math.round(t.p)} г</span><span class="chip">Ж ${Math.round(t.f)} г</span><span class="chip">У ${Math.round(t.c)} г</span></div>
-   ${R.lines.filter(l=>l.alts).map(l=>`<div class="row">${l.alts.map((id,ai)=>`<button class="chip" aria-pressed="${l.id===id}" data-a="rsel" data-r="${ri}" data-i="${l.ii}" data-v="${ai}">${esc(FOOD[id].n)}</button>`).join("")}</div>`).join("")}
+   ${R.lines.filter(l=>l.alts).map(l=>`<div class="row">${l.alts.map((id,ai)=>`<button class="chip" aria-pressed="${l.id===id}" data-a="rsel" data-r="${ri}" data-i="${l.ii}" data-v="${ai}">${esc(foodById(id).n)}</button>`).join("")}</div>`).join("")}
    <div class="row small"><span class="muted">${r.unit?"Сколько":"Порция"}</span>${(r.scales||[0.5,1,1.5,2]).map(v=>`<button class="chip" aria-pressed="${R.sc===v}" data-a="rscale" data-r="${ri}" data-v="${v}">${r.unit?fmtN(v)+" "+r.unit:"×"+fmtN(v)}</button>`).join("")}</div>
    ${r.fixed?`<p class="small muted" style="margin:0">${esc(r.note||"КБЖУ на порцию по твоим данным")}</p>`:""}
    <div>${R.lines.map(l=>`<div class="check small"><span class="txt">${esc(l.fd.n)}</span><span class="muted num">${esc(l.u||fmtN(Math.round(l.g))+" г")}</span><span class="num" style="min-width:64px;text-align:right">${Math.round(l.k)} ккал</span></div>`).join("")}</div>
-   <button class="btn-sm" style="align-self:flex-start" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button></section>`}).join("")}
+   <div class="row"><button class="btn-sm" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button>${r.my?`<span class="grow"></span><button class="btn-sm" data-a="recipeEdit" data-id="${r.id}">Изменить</button><button class="btn-sm btn-danger" data-a="recipeDelAsk" data-id="${r.id}">Удалить</button>`:""}</div></section>`}).join("")||'<div class="empty">Своих блюд пока нет. Нажми «+ Новое блюдо или продукт».</div>'}
   <p class="small muted" style="margin:0">КБЖУ посчитано по базе FatSecret на 100 г продукта и граммовке рецепта.</p>`;
 }
 function vKB(){ return `<header><div class="eyebrow">База знаний</div><h1>Коротко о главном</h1></header>${ARTICLES.map(a=>`<details class="art"><summary>${a.n}</summary><ul>${a.b.map(x=>`<li>${x}</li>`).join("")}</ul></details>`).join("")}` }
@@ -1213,6 +1217,8 @@ function countUp(root){ const els=[...root.querySelectorAll("[data-count]")]; co
 // Перерисовать картинку в окне отчёта под выбранный формат
 async function redrawReport(){ const sh=UI.sheet; if(!sh||sh.type!=="report"||!sh.R) return; if(sh.url) URL.revokeObjectURL(sh.url); sh.url=null; renderSheet();
   const blob=sh.kind==="overlay"?await overlayImage(sh.R,{style:sh.ostyle||"panel"}):await reportImage(sh.R); if(UI.sheet!==sh) return; UI.reportBlob=blob; sh.url=URL.createObjectURL(blob); renderSheet() }
+function draftTotal(D){ if(D.mode==="fixed") return {k:num(D.fx.k),p:num(D.fx.p),f:num(D.fx.f),c:num(D.fx.c)}; return D.items.reduce((a,it)=>{ const fd=foodById(it.f), m=num(it.g)/100; return {k:a.k+fd.k*m,p:a.p+fd.p*m,f:a.f+fd.f*m,c:a.c+fd.c*m} },{k:0,p:0,f:0,c:0}) }
+function draftTotalTxt(D){ const t=draftTotal(D); return `Итого${D.mode==="fixed"?" на порцию":""}: <b class="num">${Math.round(t.k)} ккал</b> · Б ${fmtN(r1(t.p))} · Ж ${fmtN(r1(t.f))} · У ${fmtN(r1(t.c))} г` }
 function renderSheet(){
   const sh=UI.sheet; const el=$("#sheet"); if(!sh){ el.innerHTML=""; return }
   let body="";
@@ -1260,13 +1266,28 @@ function renderSheet(){
     body=`<h2>Добавить еду${k===todayKey()?"":" · "+fmtD(k)}</h2>${segBar([["fav","Частое"],["rec","Рецепты"],["man","Вручную"]],tab,"addTab","Способ")}
      ${tab==="fav"?(fav.length?`<div class="row">${fav.map((f,i)=>`<button class="chip" data-a="favAdd" data-day="${k}" data-i="${i}">+ ${esc(f.n)} · ${Math.round(num(f.k))}</button>`).join("")}</div>`:'<div class="empty">Здесь появится еда, которую ты записываешь чаще всего</div>')
         +(yd.length?`<button data-a="foodRepeat" data-day="${k}">Повторить вчерашний день (${yd.length})</button>`:""):""}
-     ${tab==="rec"?RECIPES.map((r,ri)=>{const R=recipeCalc(ri); return `<button class="pick" data-a="recipeAdd" data-v="${ri}"><span><b>${esc(R.label)}</b><br><span class="small muted">Б ${Math.round(R.t.p)} · Ж ${Math.round(R.t.f)} · У ${Math.round(R.t.c)} г</span></span><span class="num">+ ${Math.round(R.t.k)}</span></button>`}).join("")+'<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="go" data-v="food" data-m="recipes">Порции и варианты — в «Рецептах» ›</button>':""}
-     ${tab==="man"?`<div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div><div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div><button class="btn-primary" data-a="addFood" data-day="${k}">Записать</button>`:""}` }
+     ${tab==="rec"?`<button class="btn-ghost btn-sm" style="align-self:flex-start;padding-left:0" data-a="recipeNew">+ Новое блюдо или продукт</button>`+allRecipes().map((r,ri)=>{const R=recipeCalc(ri); return `<button class="pick" data-a="recipeAdd" data-v="${ri}"><span><b>${esc(R.label)}</b><br><span class="small muted">Б ${Math.round(R.t.p)} · Ж ${Math.round(R.t.f)} · У ${Math.round(R.t.c)} г</span></span><span class="num">+ ${Math.round(R.t.k)}</span></button>`}).join("")+'<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="go" data-v="food" data-m="recipes">Порции и варианты — в «Рецептах» ›</button>':""}
+     ${tab==="man"?`<div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div><div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div><label class="check" style="border:0"><input id="fd-save" type="checkbox" style="width:22px;height:22px"><span class="txt small">Запомнить как блюдо — потом добавлять одним нажатием</span></label><button class="btn-primary" data-a="addFood" data-day="${k}">Записать</button>`:""}` }
   else if(sh.type==="photo"){ const id=S.body[sh.k]?.photos?.[sh.i]; if(!id){ UI.sheet=null; el.innerHTML=""; return }
     body=`<h2>Фото · ${fmtD(sh.k)}</h2><img src="${photoSrc(id)}" alt="Фото ${fmtD(sh.k)}" style="width:100%;border-radius:14px">
      <div class="row" style="flex-wrap:nowrap;align-items:flex-end"><label class="field grow">Дата фото<input id="photo-move" type="date" value="${sh.k}" max="${todayKey()}"></label><button data-a="photoMove">Сохранить дату</button></div>
      ${sh.confirm?`<p style="margin:0">Удалить это фото? Вернуть его будет нельзя${TG.get().chat?" (если оно не попало в резервную копию в Telegram)":""}.</p><div class="row"><button class="grow" data-a="photoNo">Оставить</button><button class="grow btn-danger" data-a="photoDel">Удалить</button></div>`
        :`<button class="btn-danger" data-a="photoAsk">Удалить фото</button>`}` }
+  else if(sh.type==="recipeDel"){ const r=(settings().myRecipes||[]).find(x=>x.id===sh.id); body=`<h2>Удалить «${esc(r?.n||"")}»?</h2><p class="muted" style="margin:0">Блюдо пропадёт из рецептов. Уже записанная еда в дневнике останется.</p><div class="row"><button class="grow" data-a="sheetClose">Оставить</button><button class="grow btn-danger" data-a="recipeDel" data-id="${sh.id}">Удалить</button></div>` }
+  else if(sh.type==="recipeEdit"){ const D=sh.draft, fx=D.mode==="fixed", ids=[...Object.keys(FOOD),...Object.keys(settings().myFoods||{})];
+    const inp=(k,ph,v,type="number")=>`<input type="${type}" ${type==="number"?'inputmode="decimal"':""} placeholder="${ph}" value="${esc(v??"")}" data-i="drField" data-k="${k}" id="dr-${k.replace(".","-")}">`;
+    body=`<h2>${D.id?"Изменить блюдо":"Новое блюдо или продукт"}</h2>
+     ${inp("n","Название, например «Сырники»",D.n,"text")}
+     ${segBar([["fixed","С упаковки — на порцию"],["mix","Из продуктов — по граммам"]],D.mode,"drMode","Способ")}
+     <div class="row"><span class="small muted">Приём пищи</span>${["Завтрак","Обед","Ужин"].map(m=>`<button class="chip" aria-pressed="${D.t.includes(m)}" data-a="drMeal" data-v="${m}">${m}</button>`).join("")}</div>
+     ${fx?`<div class="grid2"><label class="field">Ккал на порцию${inp("fx.k","0",D.fx.k)}</label><label class="field">Белки, г${inp("fx.p","0",D.fx.p)}</label><label class="field">Жиры, г${inp("fx.f","0",D.fx.f)}</label><label class="field">Углеводы, г${inp("fx.c","0",D.fx.c)}</label></div>
+        <label class="field">Что считать порцией${inp("note","Например: 1 шт. = 8 г, или 100 г",D.note,"text")}</label>
+        <label class="check" style="border:0"><button class="box" role="checkbox" aria-checked="${!!D.unit}" data-a="drUnit">${CHECK}</button><span class="txt small">Считать в штуках (выбор 1–5 шт. при добавлении)</span></label>`
+      :`<div class="stack">${D.items.map((it,j)=>`<div class="row" style="flex-wrap:nowrap"><select data-c="drIngF" data-j="${j}" style="flex:1">${ids.map(id=>`<option value="${id}" ${it.f===id?"selected":""}>${esc(foodById(id).n)}</option>`).join("")}</select><input type="number" inputmode="decimal" style="width:84px" placeholder="г" value="${esc(it.g)}" data-i="drIngG" data-j="${j}" id="dr-g-${j}" aria-label="Граммы"><button class="x" data-a="drIngDel" data-j="${j}" aria-label="Убрать">×</button></div>`).join("")}</div>
+        <button class="btn-sm" style="align-self:flex-start" data-a="drIngAdd">+ продукт</button>
+        <details class="art"><summary class="small">Нет нужного продукта? Добавь свой (на 100 г)</summary><div class="stack" style="margin-top:8px">${inp("nf.n","Название продукта",D.nf.n,"text")}<div class="grid2">${inp("nf.k","ккал",D.nf.k)}${inp("nf.p","Б, г",D.nf.p)}${inp("nf.f","Ж, г",D.nf.f)}${inp("nf.c","У, г",D.nf.c)}</div><button class="btn-sm" data-a="drNfAdd">Добавить продукт в блюдо</button></div></details>`}
+     <div class="banner" id="dr-total">${draftTotalTxt(D)}</div>
+     <button class="btn-primary" data-a="drSave">${D.id?"Сохранить":"Сохранить блюдо"}</button>` }
   else if(sh.type==="rename"){ body=`<h2>${sh.k==="w"?"Название тренировки":"Название программы"}</h2>
      <input id="rename-in" value="${esc(sh.name||"")}" data-i="renameIn" autocomplete="off" maxlength="60">
      <p class="small muted" style="margin:0">${sh.k==="w"?"Меняется только эта тренировка: в истории, в отчёте и в Telegram.":"Новое название будет у следующих тренировок по этой программе. Уже сделанные останутся со старым."}</p>
@@ -1285,7 +1306,7 @@ function renderRest(){
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794161898";
+const APP_VER="1794162431";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
@@ -1342,6 +1363,7 @@ const ACT={
   energy:d=>{const x=day(d.day); x.energy=x.energy===+d.v?0:+d.v; saveDay(d.day)},
   mood:d=>{const x=day(d.day); x.mood=x.mood===+d.v?0:+d.v; saveDay(d.day)},
   addFood:d=>{const g=id=>document.getElementById(id)?.value.trim(); const n=g("fd-n"); if(!n&&!g("fd-k")){toast("Напиши, что съел, и калории");return}
+    if(document.getElementById("fd-save")?.checked&&n){ const st=settings(); st.myRecipes=[...(st.myRecipes||[]),{id:"m"+uid(),my:true,n,t:["Завтрак","Обед","Ужин"],fixed:{k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))},note:"КБЖУ на порцию"}]; save("meta","settings") }
     const x=day(d.day); x.food=x.food||[]; x.food.push({id:uid(),n:n||"Приём пищи",k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))}); saveDay(d.day); toast("Записано: "+(n||"Приём пищи"))},
   delFood:d=>{const x=day(d.day); x.food=(x.food||[]).filter(f=>f.id!==d.id); saveDay(d.day)},
   recipeAdd:d=>{const R=recipeCalc(+d.v),t=R.t; const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:R.label,k:Math.round(t.k),p:r1(t.p),f:r1(t.f),c:r1(t.c)}); saveDay(UI.day); toast("Добавлено: "+R.r.n)},
@@ -1440,6 +1462,20 @@ const ACT={
   photoDel:async()=>{ const {k,i}=UI.sheet, e=S.body[k]; if(!e?.photos) return; const [id]=e.photos.splice(i,1); if(!e.photos.length) delete e.photos;
     if(Store.assets&&id&&!id.startsWith("data:")){ try{ await Store.assets.delete(id) }catch(x){} } save("body",k); UI.sheet=null; toast("Фото удалено"); render(); return false },
   hardUpdate:()=>{ toast("Загружаю новую версию…"); hardUpdate(); return false }, checkUpd:()=>{ checkUpdate(true); return false },
+  recipeNew:()=>{ UI.sheet={type:"recipeEdit",draft:{mode:"fixed",n:"",t:["Завтрак","Обед","Ужин"],fx:{},note:"",unit:false,items:[{f:"chicken",g:100}],nf:{}}} },
+  recipeEdit:d=>{ const r=(settings().myRecipes||[]).find(x=>x.id===d.id); if(!r) return; UI.sheet={type:"recipeEdit",draft:{id:r.id,mode:r.fixed?"fixed":"mix",n:r.n,t:[...r.t],fx:{...(r.fixed||{})},note:r.note||"",unit:!!r.unit,items:r.items?r.items.map(x=>({...x})):[{f:"chicken",g:100}],nf:{}}} },
+  recipeDelAsk:d=>{ UI.sheet={type:"recipeDel",id:d.id} },
+  recipeDel:d=>{ const st=settings(); st.myRecipes=(st.myRecipes||[]).filter(x=>x.id!==d.id); UI.rscale={}; UI.rsel={}; save("meta","settings"); UI.sheet=null; toast("Блюдо удалено") },
+  drMode:d=>{ UI.sheet.draft.mode=d.v }, drUnit:()=>{ UI.sheet.draft.unit=!UI.sheet.draft.unit },
+  drMeal:d=>{ const D=UI.sheet.draft; D.t=D.t.includes(d.v)?D.t.filter(x=>x!==d.v):[...D.t,d.v] },
+  drIngAdd:()=>{ UI.sheet.draft.items.push({f:"chicken",g:100}) }, drIngDel:d=>{ UI.sheet.draft.items.splice(+d.j,1) },
+  drNfAdd:()=>{ const D=UI.sheet.draft, nf=D.nf; if(!(nf.n||"").trim()||!num(nf.k)){ toast("Напиши название и калории на 100 г"); return } const st=settings(), id="u"+uid();
+    st.myFoods={...(st.myFoods||{}),[id]:{n:nf.n.trim(),k:num(nf.k),p:num(nf.p),f:num(nf.f),c:num(nf.c)}}; save("meta","settings"); D.items.push({f:id,g:100}); D.nf={}; toast("Продукт добавлен: укажи граммы") },
+  drSave:()=>{ const D=UI.sheet.draft, n=(D.n||"").trim(); if(!n){ toast("Напиши название блюда"); return } if(!D.t.length) D.t=["Завтрак","Обед","Ужин"];
+    let r; if(D.mode==="fixed"){ if(!num(D.fx.k)){ toast("Укажи калории на порцию"); return } r={n,t:D.t,fixed:{k:num(D.fx.k),p:num(D.fx.p),f:num(D.fx.f),c:num(D.fx.c)},note:(D.note||"").trim()||"КБЖУ на порцию",...(D.unit?{unit:"шт.",scales:[1,2,3,4,5]}:{})} }
+    else { const items=D.items.filter(x=>num(x.g)>0).map(x=>({f:x.f,g:num(x.g)})); if(!items.length){ toast("Добавь продукты и граммы"); return } r={n,t:D.t,items} }
+    const st=settings(), list=[...(st.myRecipes||[])]; r.my=true; if(D.id){ r.id=D.id; const i=list.findIndex(x=>x.id===D.id); list[i]=r } else { r.id="m"+uid(); list.push(r) }
+    st.myRecipes=list; save("meta","settings"); UI.sheet=null; UI.foodTab="recipes"; toast(D.id?"Блюдо сохранено":"Блюдо добавлено в рецепты") },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
@@ -1453,6 +1489,7 @@ const ACT={
 };
 const CHG={
   sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day)},
+  drIngF:(d,t)=>{ UI.sheet.draft.items[+d.j].f=t.value; renderSheet(); return false },
   cardioMin:(d,t)=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.min=num(t.value); save("workouts",d.id)},
   body:(d,t)=>{const k=todayKey(); const e=S.body[k]||(S.body[k]={}); if(t.value==="") delete e[d.v]; else e[d.v]=num(t.value); save("body",k)},
   photoDay:(d,t)=>{ UI.photoDay=t.value||"" },
@@ -1470,6 +1507,8 @@ const INP={
   pickQ:(d,t)=>{UI.sheet.q=t.value; renderSheet(); const el=document.getElementById("pick-q"); el.focus(); el.setSelectionRange(t.value.length,t.value.length); return false},
   progName:(d,t)=>{UI.sheet.name=t.value; return false},
   renameIn:(d,t)=>{UI.sheet.name=t.value; return false},
+  drField:(d,t)=>{ const D=UI.sheet.draft, [a,k2]=d.k.split("."); if(k2) D[a][k2]=t.value; else D[a]=t.value; const el=document.getElementById("dr-total"); if(el) el.innerHTML=draftTotalTxt(D); return false },
+  drIngG:(d,t)=>{ const D=UI.sheet.draft; D.items[+d.j].g=t.value; const el=document.getElementById("dr-total"); if(el) el.innerHTML=draftTotalTxt(D); return false },
 };
 document.addEventListener("click",ev=>{ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} }
   const t=ev.target.closest("[data-a]"); if(!t||t.disabled) return; const f=ACT[t.dataset.a]; if(!f) return; const r=f(t.dataset,t,ev); if(r!==false&&!(r instanceof Promise)) render() });
