@@ -361,9 +361,18 @@ function ring(p,size=64,label){ const r=size/2-6,c=2*Math.PI*r; return `<svg wid
 
 /* ---------- расчёты ---------- */
 const fmtSleep=v=>v===""||v==null?"—":fmtN(num(v))+" ч";
-// Сон из «Здоровья»: быстрая команда копирует «KSLEEP;начало|конец|значение;…» (даты в ISO 8601)
+const RU_MON=["янв","фев","мар","апр","ма","июн","июл","авг","сен","окт","ноя","дек"];
+function parseDateLoose(str){ str=String(str||"").trim().replace(/\u202f|\u00a0/g," "); if(!str) return 0;
+  if(/\d{4}-\d{2}-\d{2}T/.test(str)){ const t=Date.parse(str); if(t) return t }
+  const tm=str.match(/(\d{1,2})[:.](\d{2})(?!.*\d{1,2}[:.]\d{2})/); const H=tm?+tm[1]:0, M=tm?+tm[2]:0; let y,mo,d;
+  let m=str.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/); if(m){ d=+m[1]; mo=+m[2]-1; y=+m[3]<100?2000+ +m[3]:+m[3] }
+  else if((m=str.match(/(\d{1,2})\s+([а-яё]+)\.?\s+(\d{4})/i))){ d=+m[1]; y=+m[3]; const w=m[2].toLowerCase(); mo=w.startsWith("мая")||w.startsWith("май")?4:RU_MON.findIndex(x=>w.startsWith(x)) }
+  else if(/вчера|сегодня/i.test(str)){ const base=addDays(new Date(),/вчера/i.test(str)?-1:0); y=base.getFullYear(); mo=base.getMonth(); d=base.getDate() }
+  else { const t=Date.parse(str); return isNaN(t)?0:t }
+  if(mo<0||!tm) return 0; return new Date(y,mo,d,H,M).getTime() }
+// Сон из «Здоровья»: быстрая команда копирует «KSLEEP» и строки «начало|конец[|значение]», разделённые «;» или переводом строки
 function parseSleep(txt,k){ txt=String(txt||"").trim(); if(!txt.startsWith("KSLEEP")) return null;
-  const rows=txt.split(";").slice(1).map(r=>r.split("|")).map(([a,b,v])=>({a:Date.parse((a||"").trim()),b:Date.parse((b||"").trim()),v:(v||"").toLowerCase()})).filter(x=>x.a&&x.b&&x.b>x.a);
+  const rows=txt.replace(/^KSLEEP/,"").split(/[;\n]+/).map(r=>r.trim()).filter(Boolean).map(r=>r.split("|")).map(([a,b,v])=>({a:parseDateLoose(a),b:parseDateLoose(b),v:(v||"").toLowerCase()})).filter(x=>x.a&&x.b&&x.b>x.a);
   const day0=parseYmd(k).getTime(), lo=day0-6*36e5, hi=day0+16*36e5; let list=rows.filter(x=>x.b>=lo&&x.b<=hi);
   const asleep=list.filter(x=>!/постел|in bed|inbed|бодрств|awake/.test(x.v)); if(asleep.length) list=asleep;
   if(!list.length) return {h:0};
@@ -702,15 +711,13 @@ function vRecurring(){ const rs=settings().recurring||[], sel=UI.recDays||[];
 }
 function vSleepSetup(){
   return `<section class="card"><h2>Сон с часов</h2><p class="small muted" style="margin:0">Huawei Health передаёт длительность сна в «Здоровье» на iPhone, а быстрая команда забирает её оттуда. Сайт сам читать «Здоровье» не может, поэтому нужен этот мост — настраивается один раз.</p>
-   <details class="art"><summary>Как настроить</summary><ol class="small" style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
-    <li>Huawei Health → «Я» → «Настройки» → «Данные» → <b>«Здоровье» (Apple Health)</b>: включи передачу данных, в том числе сна. Проверь, что в «Здоровье» → «Сон» появились ночи с часов.</li>
-    <li>Открой «Команды» → «+» → назови команду точно: <b>Kalashnikov Сон</b>.</li>
-    <li>Добавь действие <b>«Найти образцы здоровья»</b>: тип — <b>«Анализ сна»</b>, фильтр «Дата начала» — «за последние» <b>1 день</b>.</li>
-    <li>Добавь <b>«Повторить с каждым»</b>, внутрь — действие <b>«Текст»</b>: «Повторяемый объект» → «Дата начала», символ <b>|</b>, «Дата окончания», символ <b>|</b>, «Значение». У обеих дат нажми на них → формат <b>ISO 8601</b> со временем.</li>
-    <li>После повтора добавь <b>«Объединить текст»</b> с произвольным разделителем <b>;</b></li>
-    <li>Добавь <b>«Текст»</b>: <b>KSLEEP;</b> и сразу за ним переменная «Объединённый текст».</li>
-    <li>Последнее действие — <b>«Скопировать в буфер обмена»</b>.</li>
-   </ol></details>
+   <details class="art"><summary>Как собрать команду (5 действий)</summary><ol class="small" style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
+    <li>Huawei Health → «Я» → «Настройки» → «Данные» → «Здоровье»: включи передачу сна. Проверь, что в приложении «Здоровье» → «Сон» видны ночи с часов.</li>
+    <li>«Команды» → «+» → назови команду точно: <b>Kalashnikov Сон</b>.</li>
+    <li>Через поиск действий добавь <b>«Найти образцы здоровья»</b> (в некоторых версиях — «Найти образцы данных о здоровье»). Тип: <b>«Анализ сна»</b>. Фильтр «Дата начала» → «за последние» → <b>1 день</b>. Если «за последние» нет, выбери «после» → «Вчера».</li>
+    <li>Добавь <b>«Повторить с каждым»</b>. Внутрь перетащи действие <b>«Текст»</b> и собери в нём: переменная «Повторяемый объект» → нажми на неё → <b>«Дата начала»</b>, затем символ <b>|</b>, затем снова «Повторяемый объект» → <b>«Дата окончания»</b>. Формат дат можно не трогать: приложение поймёт любой.</li>
+    <li>После «Повторить» добавь <b>«Текст»</b>: напиши <b>KSLEEP</b>, перейди на новую строку и вставь переменную <b>«Результаты повтора»</b>. Последнее действие — <b>«Скопировать в буфер обмена»</b>.</li>
+   </ol><p class="small muted" style="margin:0">Если хочешь, чтобы «В постели» не считалось сном, добавь в текст внутри повтора ещё <b>|</b> и «Повторяемый объект» → «Значение» — необязательно.</p></details>
    <p class="small" style="margin:0">Каждое утро на экране «Сегодня» в блоке «Состояние»: нажми <b>«1. Сон с часов»</b>, вернись в приложение и нажми <b>«2. Вставить»</b>. Время округлится до получаса.</p></section>`;
 }
 function vTelegram(){ const t=TG.get();
