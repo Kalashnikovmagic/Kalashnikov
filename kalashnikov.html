@@ -461,8 +461,8 @@ function gmCache(){ if(GMC) return GMC; const prs={}, byDate={};
   GMC={prs,byDate,xp:{},total:null}; return GMC }
 const foodSum=d=>(d?.food||[]).reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p)}),{k:0,p:0});
 // Норма дня считается выполненной, если: калории 90–105% цели, белок не меньше 90%, жиры 80–125%. Углеводы — свободные (это остаток)
-const KBJU_RULES=[{k:"k",n:"Калории",lo:.9,hi:1.05},{k:"p",n:"Белки",lo:.9,hi:null},{k:"f",n:"Жиры",lo:.8,hi:1.25}];
-function kbjuEval(d){ const t=settings().target; if(!t) return null; const s2=(d?.food||[]).reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p),f:a.f+num(f.f),c:a.c+num(f.c)}),{k:0,p:0,f:0,c:0}); const goal={k:t.kcal,p:t.p,f:t.f};
+const KBJU_RULES=[{k:"k",n:"Калории",lo:.9,hi:1.05},{k:"p",n:"Белки",lo:.9,hi:null},{k:"f",n:"Жиры",lo:.8,hi:1.25},{k:"c",n:"Углеводы",lo:0,hi:null,free:true}];
+function kbjuEval(d){ const t=settings().target; if(!t) return null; const s2=(d?.food||[]).reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p),f:a.f+num(f.f),c:a.c+num(f.c)}),{k:0,p:0,f:0,c:0}); const goal={k:t.kcal,p:t.p,f:t.f,c:t.c};
   const items=KBJU_RULES.map(r=>{ const pct=goal[r.k]?s2[r.k]/goal[r.k]:0; return {...r,pct,ok:pct>=r.lo&&(r.hi==null||pct<=r.hi),low:pct<r.lo} }); return {items,ok:!!d?.food?.length&&items.every(i=>i.ok)} }
 function kbjuOk(d){ return !!kbjuEval(d)?.ok }
 function habitsAll(k){ const h=settings().habits, d=peekDay(k); return h.length>0&&!!d&&h.every(x=>d.habits?.[x.id]) }
@@ -738,7 +738,7 @@ function foodSummary(k,d){ const t=settings().target, food=d.food||[], sum=food.
   const meter=(v,goal,l,u)=>`<div class="stack" style="gap:3px"><div class="row between small"><span>${l}</span><span class="num">${Math.round(v)}${goal?" / "+goal:""} ${u}</span></div>${goal?`<div class="meter ${v>goal*1.05?"over":""}"><i style="width:${Math.min(100,v/goal*100)}%"></i></div>`:""}</div>`;
   const rk=t?t.kcal-sum.k:0, E=t&&food.length?kbjuEval(d):null;
   return `${t?`<div class="small">${rk>=0?`Осталось: <b class="num">${Math.round(rk)} ккал</b> · Б ${Math.max(0,Math.round(t.p-sum.p))} · Ж ${Math.max(0,Math.round(t.f-sum.f))} · У ${Math.max(0,Math.round(t.c-sum.c))} г`:`<span style="color:var(--red)">Перебор: +${Math.round(-rk)} ккал</span>`}</div>`:`<div class="row between small"><span class="muted">Норма КБЖУ не задана</span><button class="btn-sm" data-a="go" data-v="food" data-m="norm">Рассчитать</button></div>`}
-    ${E?`<div class="row small">${E.ok?'<span class="chip up">Норма дня выполнена</span>':'<span class="chip">Норма пока не выполнена</span>'}${E.items.map(i=>`<span class="chip ${i.ok?"up":i.low?"":"down"}">${i.n} ${Math.round(i.pct*100)}%</span>`).join("")}</div>`:""}
+    ${E?`<div class="row small">${E.ok?'<span class="chip up">Норма дня выполнена</span>':'<span class="chip">Норма пока не выполнена</span>'}${E.items.map(i=>`<span class="chip ${i.free?"":i.ok?"up":i.low?"":"down"}">${i.n} ${Math.round(i.pct*100)}%</span>`).join("")}</div>`:""}
     ${meter(sum.k,t?.kcal,"Калории","ккал")}<div class="grid3">${meter(sum.p,t?.p,"Белки","г")}${meter(sum.f,t?.f,"Жиры","г")}${meter(sum.c,t?.c,"Углеводы","г")}</div>` }
 function vToday(){
   ensureRecurring(UI.day); const k=UI.day, d=peekDay(k)||{tasks:[],habits:{},food:[]}, isToday=k===todayKey(); const st=dayStats(k); const hab=settings().habits;
