@@ -317,12 +317,13 @@ const FOOD={
 const RECIPES=[
   {n:"Капучино",t:["Завтрак","Обед","Ужин"],items:[{f:"espresso",g:30,u:"1 шот"},{f:"milk32",g:170,u:"170 мл"}]},
   {n:"Протеиновый коктейль",t:["Завтрак","Обед","Ужин"],fixed:{k:300,p:34,f:11,c:17}},
+  {n:"Хлебцы рисовые Dr. Körner «Паприка Чили»",t:["Завтрак","Обед","Ужин"],fixed:{k:31,p:0.4,f:1.2,c:4.6},unit:"шт.",scales:[1,2,3,4,5],note:"1 хлебец = 8 г · КБЖУ на 1 хлебец с упаковки"},
   {n:"Овсяноблин",t:["Завтрак"],items:[{f:"oats",g:55},{f:"milk",g:80,u:"80 мл"},{f:"egg",g:100,u:"2 шт."},{f:["chicken","turkey"],g:45},{f:"cream_cheese",g:7},{f:"gouda",g:15},{f:"tomato",g:50},{f:"cucumber",g:40},{f:"pickle",g:20},{f:"lettuce",g:20},{f:"jalapeno",g:10},{f:"teriyaki",g:15}]},
   {n:"Овсянка с ягодами",t:["Завтрак"],items:[{f:"oats",g:85,u:"85 г сухих"},{f:"whey",g:15},{f:"banana",g:120},{f:"nectarine",g:70},{f:"nuts",g:20}]},
   {n:"Курица или индейка с крупой",t:["Обед"],items:[{f:["chicken","turkey"],g:250,u:"250 г готовой, без масла"},{f:["rice","buckwheat","bulgur"],g:80,u:"80 г сухой"},{f:"veg",g:250}]},
   {n:"Творог с греческим йогуртом и ягодами",t:["Ужин"],items:[{f:"tvorog",g:200},{f:"greek",g:80},{f:["banana","nectarine"],g:120},{f:"whey",g:15},{f:"nuts",g:25}]},
 ];
-function recipeCalc(ri){ const r=RECIPES[ri], sc=UI.rscale?.[ri]||1, xs=sc!==1?" ×"+fmtN(sc):"";
+function recipeCalc(ri){ const r=RECIPES[ri], sc=UI.rscale?.[ri]||1, xs=r.unit?` — ${fmtN(sc)} ${r.unit}`:sc!==1?" ×"+fmtN(sc):"";
   if(r.fixed) return {r,sc,lines:[],t:{k:r.fixed.k*sc,p:r.fixed.p*sc,f:r.fixed.f*sc,c:r.fixed.c*sc},label:r.n+xs}; const sel=UI.rsel[ri]||{}; const lines=r.items.map((it,ii)=>{const id=Array.isArray(it.f)?it.f[sel[ii]||0]:it.f; const fd=FOOD[id]; const g=it.g*sc, m=g/100;
   return {ii,id,fd,g,u:sc===1?it.u:"",alts:Array.isArray(it.f)?it.f:null,k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m}});
   const t=lines.reduce((a,l)=>({k:a.k+l.k,p:a.p+l.p,f:a.f+l.f,c:a.c+l.c}),{k:0,p:0,f:0,c:0});
@@ -1023,8 +1024,8 @@ function vRecipes(){
    <div class="row between"><h3>${r.n}</h3><span class="num" style="font-size:20px">${Math.round(t.k)} ккал</span></div>
    <div class="row small"><span class="chip">Б ${Math.round(t.p)} г</span><span class="chip">Ж ${Math.round(t.f)} г</span><span class="chip">У ${Math.round(t.c)} г</span></div>
    ${R.lines.filter(l=>l.alts).map(l=>`<div class="row">${l.alts.map((id,ai)=>`<button class="chip" aria-pressed="${l.id===id}" data-a="rsel" data-r="${ri}" data-i="${l.ii}" data-v="${ai}">${esc(FOOD[id].n)}</button>`).join("")}</div>`).join("")}
-   <div class="row small"><span class="muted">Порция</span>${[0.5,1,1.5,2].map(v=>`<button class="chip" aria-pressed="${R.sc===v}" data-a="rscale" data-r="${ri}" data-v="${v}">×${fmtN(v)}</button>`).join("")}</div>
-   ${r.fixed?'<p class="small muted" style="margin:0">КБЖУ на порцию по твоим данным</p>':""}
+   <div class="row small"><span class="muted">${r.unit?"Сколько":"Порция"}</span>${(r.scales||[0.5,1,1.5,2]).map(v=>`<button class="chip" aria-pressed="${R.sc===v}" data-a="rscale" data-r="${ri}" data-v="${v}">${r.unit?fmtN(v)+" "+r.unit:"×"+fmtN(v)}</button>`).join("")}</div>
+   ${r.fixed?`<p class="small muted" style="margin:0">${esc(r.note||"КБЖУ на порцию по твоим данным")}</p>`:""}
    <div>${R.lines.map(l=>`<div class="check small"><span class="txt">${esc(l.fd.n)}</span><span class="muted num">${esc(l.u||fmtN(Math.round(l.g))+" г")}</span><span class="num" style="min-width:64px;text-align:right">${Math.round(l.k)} ккал</span></div>`).join("")}</div>
    <button class="btn-sm" style="align-self:flex-start" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button></section>`}).join("")}
   <p class="small muted" style="margin:0">КБЖУ посчитано по базе FatSecret на 100 г продукта и граммовке рецепта.</p>`;
@@ -1284,7 +1285,7 @@ function renderRest(){
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794160976";
+const APP_VER="1794161898";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
@@ -1343,7 +1344,7 @@ const ACT={
   addFood:d=>{const g=id=>document.getElementById(id)?.value.trim(); const n=g("fd-n"); if(!n&&!g("fd-k")){toast("Напиши, что съел, и калории");return}
     const x=day(d.day); x.food=x.food||[]; x.food.push({id:uid(),n:n||"Приём пищи",k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))}); saveDay(d.day); toast("Записано: "+(n||"Приём пищи"))},
   delFood:d=>{const x=day(d.day); x.food=(x.food||[]).filter(f=>f.id!==d.id); saveDay(d.day)},
-  recipeAdd:d=>{const R=recipeCalc(+d.v),t=R.t; const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:R.label,k:Math.round(t.k),p:Math.round(t.p),f:Math.round(t.f),c:Math.round(t.c)}); saveDay(UI.day); toast("Добавлено: "+R.r.n)},
+  recipeAdd:d=>{const R=recipeCalc(+d.v),t=R.t; const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:R.label,k:Math.round(t.k),p:r1(t.p),f:r1(t.f),c:r1(t.c)}); saveDay(UI.day); toast("Добавлено: "+R.r.n)},
   rsel:d=>{const m=UI.rsel[d.r]||(UI.rsel[d.r]={}); m[d.i]=+d.v},
   rtag:d=>{UI.recipeTag=d.v},
   setTarget:()=>{const r=mifflin(settings().profile); if(r){settings().target={kcal:r.kcal,p:r.p,f:r.f,c:r.c}; save("meta","settings"); toast("Норма сохранена")}},
