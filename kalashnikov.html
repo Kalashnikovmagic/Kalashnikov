@@ -444,8 +444,8 @@ function gmCache(){ if(GMC) return GMC; const prs={}, byDate={};
 const foodSum=d=>(d?.food||[]).reduce((a,f)=>({k:a.k+num(f.k),p:a.p+num(f.p)}),{k:0,p:0});
 function kbjuOk(d){ const t=settings().target; if(!t||!d?.food?.length) return false; const s2=foodSum(d); return s2.k>=t.kcal*0.9&&s2.k<=t.kcal*1.05 }
 function habitsAll(k){ const h=settings().habits, d=peekDay(k); return h.length>0&&!!d&&h.every(x=>d.habits?.[x.id]) }
-// День засчитан в серию: была тренировка или закрыты все привычки
-function dayCounted(k){ return !!gmCache().byDate[k]?.length||habitsAll(k) }
+// День засчитан в серию: была тренировка, закрыты все привычки или набрана цель дня по опыту — дни отдыха тоже засчитываются
+function dayCounted(k){ return !!gmCache().byDate[k]?.length||habitsAll(k)||xpDay(k)>=gm().goal }
 const QUESTS=[
   {id:"habits",t:"Закрой все привычки",ok:()=>settings().habits.length>0,done:k=>habitsAll(k)},
   {id:"push",t:"Сделай все блоки «Отжиманий»",ok:()=>settings().habits.some(h=>/отжиман/i.test(h.name)),done:k=>{const h=settings().habits.find(h=>/отжиман/i.test(h.name)); return !!peekDay(k)?.habits?.[h.id]}},
@@ -525,7 +525,7 @@ function vAch(){ const g=gm(), X=xpTotal(), L=levelOf(X), n=streakNow(), best=be
   <section class="card"><div class="row" style="flex-wrap:nowrap;gap:14px">${ICON.up.replace("<svg",'<svg style="width:56px;height:56px;flex:none"')}<div class="grow stack" style="gap:6px;min-width:0"><div class="eyebrow">Уровень ${L.n}</div><h2>${esc(L.name)}</h2>
     <div class="meter"><i style="width:${L.to?Math.min(100,(X-L.from)/(L.to-L.from)*100):100}%"></i></div><div class="small muted">${L.to?`${X} очков · ещё ${L.to-X} до «${L.next}»`:`${X} очков · максимальный уровень`}</div></div></div></section>
   <section class="card"><div class="row" style="flex-wrap:nowrap;gap:14px">${ICON.flame.replace("<svg",'<svg style="width:56px;height:56px;flex:none"')}<div class="grow stack" style="gap:4px"><h2>Серия: ${n} ${plural(n,"день","дня","дней")}</h2><div class="small muted">Лучшая: ${best} · ${g.freezes} ${plural(g.freezes,"заморозка","заморозки","заморозок")} из 2</div></div></div>
-    <p class="small muted" style="margin:0">День засчитывается, если была тренировка или закрыты все привычки. Заморозка сама спасает пропущенный день, новая даётся за каждые 7 дней подряд.</p></section>
+    <p class="small muted" style="margin:0">День засчитывается, если была тренировка, закрыты все привычки или набрана цель дня по опыту. В день отдыха хватит привычек и задач: например, 3 привычки и 4 задачи — это 50 очков. Заморозка сама спасает пропущенный день, новая даётся за каждые 7 дней подряд.</p></section>
   <section class="card"><div class="row between"><h2>Опыт за неделю</h2><span class="chip ${cur>=prev?"up":"down"}">${cur>=prev?"+":"−"}${Math.abs(cur-prev)} к прошлой</span></div>
     ${barChart(bars,{fmt:v=>String(v)})}
     <div class="row between small"><span class="muted">Цель дня</span><div class="seg" style="flex:0 0 auto">${[30,50,100].map(v=>`<button aria-pressed="${g.goal===v}" data-a="xpGoal" data-v="${v}" style="padding:6px 14px">${v}</button>`).join("")}</div></div>
