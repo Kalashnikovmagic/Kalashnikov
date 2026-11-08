@@ -1,10 +1,8 @@
-const C="kalashnikov-v13";
+const C="kalashnikov-v14";
 const ASSETS=["./","./index.html","./manifest.webmanifest","./icon-192.png?v=2","./icon-512.png?v=2","./icon-180.png?v=2","./icon-32.png?v=2"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim()});
 // Сначала сеть (чтобы обновления приходили сразу), без сети — из кэша.
-// Нажатие на уведомление открывает приложение.
-self.addEventListener("notificationclick",e=>{e.notification.close();e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(cs=>cs.length?cs[0].focus():clients.openWindow("./")))});
 self.addEventListener("fetch",e=>{
   if(e.request.method!=="GET") return;
   e.respondWith(fetch(e.request).then(r=>{const cp=r.clone(); if(r.ok) caches.open(C).then(c=>c.put(e.request,cp)); return r})

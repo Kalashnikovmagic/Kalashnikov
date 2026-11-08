@@ -742,13 +742,6 @@ function vSettings(){
   <section class="card"><h2>Ежедневные привычки</h2><p class="small muted" style="margin:0">Появляются в каждом дне и считаются в проценте выполнения.</p>
    <div>${s.habits.map(h=>`<div class="check"><span class="txt">${esc(h.name)}</span><button class="x" data-a="delHabit" data-id="${h.id}" aria-label="Удалить привычку">×</button></div>`).join("")}</div>
    <div class="add"><input id="add-habit" placeholder="Новая привычка" data-enter="addHabit" autocomplete="off"><button data-a="addHabit">Добавить</button></div></section>
-  <section class="card"><h2>Уведомления на часы</h2>
-   <p class="small muted" style="margin:0">Когда отдых закончится, iPhone покажет уведомление, а Huawei Health перешлёт его на часы. Работает, когда приложение открыто с экрана «Домой».</p>
-   ${!canNotify()?'<div class="banner">Уведомления здесь недоступны. Открой Kalashnikov с иконки на экране «Домой» (нужна iOS 16.4 или новее).</div>'
-     :Notification.permission==="granted"?'<span class="chip up" style="align-self:flex-start">Включены</span>'
-     :Notification.permission==="denied"?'<div class="banner">Уведомления запрещены. Разреши их: Настройки iPhone → Уведомления → Kalashnikov.</div>'
-     :'<button class="btn-primary" data-a="notifyOn">Включить уведомления</button>'}
-   ${canNotify()&&Notification.permission==="granted"?'<button data-a="notifyTest">Проверить: уведомление через 5 секунд</button>':""}</section>
   ${vRecurring()}
   ${vTelegram()}
   <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
@@ -792,19 +785,13 @@ function renderRest(){
   el.innerHTML=`<div class="restbar"><div class="in"><span class="t">${left>0?mmss(left):"Пора!"}</span><div class="bar"><i style="width:${Math.max(0,left/rest.total*100)}%"></i></div><button class="btn-sm" data-a="restAdd">+30</button><button class="btn-sm" data-a="restStop">Стоп</button></div></div>`;
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
-// Уведомление iPhone → часы (Huawei Health пересылает уведомления из Центра уведомлений). На iOS работает в приложении с экрана «Домой», iOS 16.4+.
-const canNotify=()=>"Notification" in window;
 const TG={get(){ try{ return JSON.parse(localStorage.getItem("zh_tg")||"{}") }catch(e){ return {} } }, set(v){ try{ localStorage.setItem("zh_tg",JSON.stringify(v)) }catch(e){} }};
 // POST с form-urlencoded — «простой» запрос без предварительной проверки CORS, Telegram его принимает
 async function tgCall(token,method,params){ const r=await fetch("https://api.telegram.org/bot"+token+"/"+method,{method:"POST",body:new URLSearchParams(params||{})}); return r.json() }
 async function tgSend(text){ const t=TG.get(); if(!t.on||!t.token||!t.chat) return false; try{ return (await tgCall(t.token,"sendMessage",{chat_id:t.chat,text})).ok }catch(e){ return false } }
-async function notify(title,body){ if(!canNotify()||Notification.permission!=="granted") return false;
-  const opts={body,tag:"rest",renotify:true,requireInteraction:false,icon:"icon-192.png?v=2",badge:"icon-192.png?v=2"};
-  try{ const reg=await navigator.serviceWorker?.getRegistration(); if(reg){ await reg.showNotification(title,opts); return true } }catch(e){}
-  try{ new Notification(title,opts); return true }catch(e){ return false } }
 function beep(){ try{ if(!audioCtx) return; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.value=880; g.gain.setValueAtTime(.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.6); o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+.6) }catch(e){} try{navigator.vibrate?.([200,100,200])}catch(e){} }
 setInterval(()=>{
-  if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep(); const msg=rest.label?"Следующий подход: "+rest.label:"Пора на следующий подход"; notify("Отдых окончен",msg); tgSend("Отдых окончен. "+msg) } if(left<=-3){ rest.end=0 } renderRest() }
+  if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep(); const msg=rest.label?"Следующий подход: "+rest.label:"Пора на следующий подход"; tgSend("Отдых окончен. "+msg) } if(left<=-3){ rest.end=0 } renderRest() }
   const el=document.getElementById("wk-el"); const id=UI.openWorkout||activeWorkout(); const w=id&&S.workouts[id]; if(el&&w&&!w.finishedAt) el.textContent=mmss((Date.now()-w.startedAt)/1000);
 },1000);
 let wakeLock=null; async function keepAwake(){ try{ wakeLock=await navigator.wakeLock?.request("screen") }catch(e){} }
@@ -890,8 +877,6 @@ const ACT={
   delProg:d=>{const s=settings(); s.customPrograms=s.customPrograms.filter(p=>p.id!==d.id); save("meta","settings")},
   addWork:d=>{const v=num(document.getElementById("work-in")?.value); if(!v){toast("Впиши число");return} const it=working().items[d.ex]||(working().items[d.ex]={h:[],u:EX[d.ex]?.bw?"повт.":"кг"}); it.h.push(v); save("meta","working")},
   undoWork:d=>{const it=working().items[d.ex]; if(it?.h.length){ it.h.pop(); save("meta","working") }},
-  notifyOn:async()=>{ try{ await Notification.requestPermission() }catch(e){} render(); if(Notification.permission==="granted") notify("Kalashnikov","Уведомления включены. Так будет выглядеть сигнал об окончании отдыха."); return false },
-  notifyTest:()=>{ toast("Жди 5 секунд, приложение не закрывай"); setTimeout(()=>{ beep(); notify("Отдых окончен","Следующий подход: проверка уведомлений") },5000) },
   tgSave:async()=>{ const token=(document.getElementById("tg-token")?.value||"").trim(); if(!/^\d+:[\w-]{20,}$/.test(token)){ toast("Это не похоже на ключ бота: он выглядит как 123456:ABC…"); return false }
     try{ const j=await tgCall(token,"getMe"); if(!j.ok){ toast("Telegram не принял ключ. Скопируй его из BotFather целиком."); return false } TG.set({token,bot:j.result.username,on:true}); toast("Бот @"+j.result.username+" подключён") }
     catch(e){ toast("Нет связи с Telegram. Проверь интернет и попробуй снова.") } render(); return false },
