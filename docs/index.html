@@ -775,25 +775,12 @@ function foodSummary(k,d){ const t=settings().target, food=d.food||[], sum=food.
     ${meter(sum.k,t?.kcal,"Калории","ккал")}<div class="grid3">${meter(sum.p,t?.p,"Белки","г")}${meter(sum.f,t?.f,"Жиры","г")}${meter(sum.c,t?.c,"Углеводы","г")}</div>` }
 function vToday(){
   ensureRecurring(UI.day); const k=UI.day, d=peekDay(k)||{tasks:[],habits:{},food:[]}, isToday=k===todayKey(); const st=dayStats(k); const hab=settings().habits;
-  const tired=isToday&&num(d.sleep)>0&&num(d.sleep)<6&&d.energy>0&&d.energy<=2;
   const lb=lastBodyDate(), needBody=isToday&&(settings().profile.goal==="recomp"||finished().length>0)&&(!lb||(parseYmd(k)-parseYmd(lb))/864e5>=7);
-  const act=activeWorkout(); const doneToday=finished().filter(w=>w.date===k); const dl=isToday?deloadState():null;
-  const np=PROGRAMS.find(p=>p.id===nextProgram());
-  let train;
-  if(act){ const w=S.workouts[act]; train=`<div class="row between"><div><div class="eyebrow">Идёт тренировка</div><h3>${esc(w.title)}</h3></div><button class="btn-primary" data-a="openW" data-id="${act}">Продолжить</button></div>` }
-  else if(doneToday.length){ const w=doneToday[doneToday.length-1]; train=`<div class="row between"><div><div class="eyebrow">Тренировка сделана</div><h3>${esc(w.title)}</h3><div class="small muted">${wSets(w)} подходов · ${fmtN(wVolume(w)/1000)} т объёма</div></div><button data-a="openW" data-id="${w.id}">Открыть</button></div>` }
-  else train=`<div class="row" style="align-items:stretch"><span class="plate p-${np.id}"></span><div class="grow stack" style="gap:4px"><div class="eyebrow">Следующая по плану</div><h3>${esc(progName(np))}</h3><div class="small muted">${np.scheme} · ${np.items.length} упражнений</div></div></div>
-    ${!tired&&dl==="due"?`<div class="banner"><b>Пора разгрузочной неделе.</b> Шесть недель тяжёлых тренировок — дай телу восстановиться: те же веса, на 40% меньше подходов, 2–3 тренировки за неделю.</div>`:""}
-    ${!tired&&dl==="week"?`<div class="banner">Идёт разгрузочная неделя: веса прежние, подходов меньше.</div>`:""}
-    ${tired?`<div class="banner"><b>Плохо восстановился:</b> сон ${fmtSleep(d.sleep)}, энергия ${d.energy} из 5. Сделай на подход меньше и сними 10% веса — в дефиците это бережёт мышцы.</div>`:""}
-    <div class="row"><button class="btn-primary grow" data-a="startP" data-id="${np.id}"${tired?' data-light="1"':dl?' data-deload="1"':""}>${tired?"Начать облегчённую":dl?"Начать разгрузочную":"Начать"} ${esc(progName(np))}</button>${PROGRAMS.filter(p=>p.id!==np.id).map(p=>`<button data-a="startP" data-id="${p.id}">${p.id}</button>`).join("")}</div>
-    ${tired||dl?`<div class="row">${tired||dl?`<button class="btn-ghost btn-sm" data-a="startP" data-id="${np.id}">Всё равно в полную силу</button>`:""}${dl==="due"?`<button class="btn-ghost btn-sm" data-a="deloadSnooze">Напомнить через неделю</button>`:""}</div>`:""}`;
   return `
   <header class="row between"><div><div class="eyebrow">${isToday?"Сегодня":"День"} · ${WD[wdIdx(k)]}</div><h1>${fmtD(k)}</h1></div>
     <div class="row"><button class="icon-btn" data-a="dayShift" data-v="-1" aria-label="Предыдущий день">‹</button>${isToday?"":`<button class="btn-sm" data-a="dayToday">Сегодня</button>`}<button class="icon-btn" data-a="dayShift" data-v="1" aria-label="Следующий день">›</button></div></header>
   ${vGame(k)}
   ${needBody?`<div class="banner row between"><span>${lb?"Больше недели без замеров.":"Замеров ещё нет."} Впиши вес и талию — без них не видно, как идёт рекомпозиция.</span><button class="btn-sm" data-a="go" data-v="progress" data-m="body">Вписать</button></div>`:""}
-  <section class="card">${train}</section>
   <section class="card"><div class="row between"><h2>Привычки и задачи</h2><span class="chip ${st.total&&st.done===st.total?"up":"acc"}">${st.done} из ${st.total}</span></div>
     <div>${hab.map(h=>{const n=hParts(h), a=hpOf(d,h), c=a.filter(Boolean).length; return `<div class="check ${d.habits?.[h.id]?"done":""} ${n>1?"multi":""}">${box(d.habits?.[h.id],`data-a="habit" data-id="${h.id}" aria-label="${esc(h.name)}"`)}<span class="txt">${esc(h.name)}${n>1?` <span class="muted small num">${c}/${n}</span>`:""}</span>${(s2=>s2>=2?`<span class="chip up">${s2} дн. подряд</span>`:'<span class="chip">привычка</span>')(streak(h.id))}
       ${n>1?`<div class="parts">${a.map((on,i)=>`<button class="part" aria-pressed="${on}" data-a="habitPart" data-id="${h.id}" data-i="${i}" aria-label="${esc(h.name)}: блок ${i+1}">${i+1}</button>`).join("")}</div>`:""}</div>`}).join("")}
@@ -843,11 +830,15 @@ function vWeek(){
 function vTrain(){
   const id=UI.openWorkout||activeWorkout(); if(id&&S.workouts[id]) return vLogger(id);
   const hist=finished().reverse(); const np=nextProgram(); const cps=settings().customPrograms||[];
+  const k=todayKey(), d=peekDay(k)||{}, tired=num(d.sleep)>0&&num(d.sleep)<6&&d.energy>0&&d.energy<=2, dl=deloadState();
   return `<header><div class="eyebrow">Тренировка</div><h1>Программы</h1></header>
+  ${!tired&&dl==="due"?`<div class="banner"><b>Пора разгрузочной неделе.</b> Шесть недель тяжёлых тренировок — дай телу восстановиться: те же веса, на 40% меньше подходов, 2–3 тренировки за неделю.<div class="row" style="margin-top:8px"><button class="btn-ghost btn-sm" data-a="deloadSnooze">Напомнить через неделю</button></div></div>`:""}
+  ${!tired&&dl==="week"?`<div class="banner">Идёт разгрузочная неделя: веса прежние, подходов меньше.</div>`:""}
+  ${tired?`<div class="banner"><b>Плохо восстановился:</b> сон ${fmtSleep(d.sleep)}, энергия ${d.energy} из 5. Сделай на подход меньше и сними 10% веса — в дефиците это бережёт мышцы.</div>`:""}
   ${PROGRAMS.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-${p.id}"></span><div class="grow stack" style="gap:4px">
     <div class="row between"><h2>${esc(progName(p))}</h2>${p.id===np?'<span class="chip acc">следующая</span>':""}</div><div class="small muted">${p.src} · ${p.scheme}</div>
     <div class="small">${p.items.map(i=>exName(i.ex)).join(" · ")}</div><div class="small muted">Разминка: 10 мин эллипс · Кардио 15 мин · Заминка</div></div></div>
-    <div class="row"><button class="grow ${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}">Начать</button><button class="chip" aria-pressed="${!!settings().supersets}" data-a="ssToggle" title="Грудь + спина, плечи + ноги, бицепс + трицепс">Суперсерии ${settings().supersets?"вкл":"выкл"}</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button></div></section>`).join("")}
+    <div class="row"><button class="grow ${p.id===np?"btn-primary":""}" data-a="startP" data-id="${p.id}"${p.id===np?(tired?' data-light="1"':dl?' data-deload="1"':""):""}>${p.id===np&&tired?"Начать облегчённую":p.id===np&&dl?"Начать разгрузочную":"Начать"}</button>${p.id===np&&(tired||dl)?`<button class="btn-ghost btn-sm" data-a="startP" data-id="${p.id}">В полную силу</button>`:""}<button class="chip" aria-pressed="${!!settings().supersets}" data-a="ssToggle" title="Грудь + спина, плечи + ноги, бицепс + трицепс">Суперсерии ${settings().supersets?"вкл":"выкл"}</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button></div></section>`).join("")}
   <p class="small muted" style="margin:0">Суперсерии — пары грудь + спина, плечи + ноги, бицепс + трицепс собираются сами при старте. Связать вручную — кнопка «Суперсерия» у упражнения.</p>
   ${cps.length?`<h2>Свои программы</h2>${cps.map(p=>`<section class="card"><div class="row" style="align-items:stretch"><span class="plate p-X"></span><div class="grow"><h3>${esc(p.n)}</h3><div class="small muted">${p.items.map(i=>exName(i.ex)).join(" · ")}</div></div></div><div class="row"><button class="grow" data-a="startP" data-id="${p.id}">Начать</button><button class="btn-sm" data-a="renameOpen" data-k="p" data-id="${p.id}">Переименовать</button><button class="btn-sm btn-danger" data-a="delProg" data-id="${p.id}">Удалить</button></div></section>`).join("")}`:""}
   <button data-a="startEmpty">Пустая тренировка — набрать упражнения самому</button>
@@ -1322,7 +1313,7 @@ function renderRest(){
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794168660";
+const APP_VER="1794169427";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
