@@ -361,23 +361,6 @@ function ring(p,size=64,label){ const r=size/2-6,c=2*Math.PI*r; return `<svg wid
 
 /* ---------- расчёты ---------- */
 const fmtSleep=v=>v===""||v==null?"—":fmtN(num(v))+" ч";
-const RU_MON=["янв","фев","мар","апр","ма","июн","июл","авг","сен","окт","ноя","дек"];
-function parseDateLoose(str){ str=String(str||"").trim().replace(/\u202f|\u00a0/g," "); if(!str) return 0;
-  if(/\d{4}-\d{2}-\d{2}T/.test(str)){ const t=Date.parse(str); if(t) return t }
-  const tm=str.match(/(\d{1,2})[:.](\d{2})(?!.*\d{1,2}[:.]\d{2})/); const H=tm?+tm[1]:0, M=tm?+tm[2]:0; let y,mo,d;
-  let m=str.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/); if(m){ d=+m[1]; mo=+m[2]-1; y=+m[3]<100?2000+ +m[3]:+m[3] }
-  else if((m=str.match(/(\d{1,2})\s+([а-яё]+)\.?\s+(\d{4})/i))){ d=+m[1]; y=+m[3]; const w=m[2].toLowerCase(); mo=w.startsWith("мая")||w.startsWith("май")?4:RU_MON.findIndex(x=>w.startsWith(x)) }
-  else if(/вчера|сегодня/i.test(str)){ const base=addDays(new Date(),/вчера/i.test(str)?-1:0); y=base.getFullYear(); mo=base.getMonth(); d=base.getDate() }
-  else { const t=Date.parse(str); return isNaN(t)?0:t }
-  if(mo<0||!tm) return 0; return new Date(y,mo,d,H,M).getTime() }
-// Сон из «Здоровья»: быстрая команда копирует «KSLEEP» и строки «начало|конец[|значение]», разделённые «;» или переводом строки
-function parseSleep(txt,k){ txt=String(txt||"").trim(); if(!txt.startsWith("KSLEEP")) return null;
-  const rows=txt.replace(/^KSLEEP/,"").split(/[;\n]+/).map(r=>r.trim()).filter(Boolean).map(r=>r.split("|")).map(([a,b,v])=>({a:parseDateLoose(a),b:parseDateLoose(b),v:(v||"").toLowerCase()})).filter(x=>x.a&&x.b&&x.b>x.a);
-  const day0=parseYmd(k).getTime(), lo=day0-6*36e5, hi=day0+16*36e5; let list=rows.filter(x=>x.b>=lo&&x.b<=hi);
-  const asleep=list.filter(x=>!/постел|in bed|inbed|бодрств|awake/.test(x.v)); if(asleep.length) list=asleep;
-  if(!list.length) return {h:0};
-  list.sort((x,y)=>x.a-y.a); let tot=0,cs=list[0].a,ce=list[0].b; for(const x of list.slice(1)){ if(x.a<=ce) ce=Math.max(ce,x.b); else { tot+=ce-cs; cs=x.a; ce=x.b } } tot+=ce-cs;
-  return {h:Math.min(14,Math.round(tot/36e5*2)/2),from:Math.min(...list.map(x=>x.a)),to:Math.max(...list.map(x=>x.b))} }
 const e1rm=(w,r)=>w>0&&r>0?w*(1+r/30):0; // формула Эпли
 function bests(excludeId){ const m={}; for(const w of finished()){ if(w.id===excludeId) continue; for(const e of w.ex){ for(const x of doneSets(e)){ const o=m[e.exId]||(m[e.exId]={w:0,e:0,r:0,wd:"",ed:"",rd:"",wr:0}); const W=num(x.w),R=num(x.r);
   if(W>o.w){o.w=W;o.wd=w.date;o.wr=R} const E=e1rm(W,R); if(E>o.e){o.e=E;o.ed=w.date} if(!W&&R>o.r){o.r=R;o.rd=w.date} } } } return m }
@@ -467,8 +450,7 @@ function vToday(){
     <div class="add"><input id="add-task-${k}" placeholder="Новая задача на день" data-enter="addTask" data-day="${k}" autocomplete="off"><button data-a="addTask" data-day="${k}">Добавить</button></div>
     <button class="btn-ghost" style="align-self:flex-start" data-a="go" data-v="more" data-m="settings">Изменить список привычек</button></section>
   <section class="card"><h2>Состояние</h2>
-    <div class="grid2"><label class="field">Сон<select id="sleep-${k}" data-c="sleep" data-day="${k}"><option value="">—</option>${[...Array(13)].map((_,i)=>4+i/2).map(h=>`<option ${num(d.sleep)===h&&d.sleep!==""?"selected":""} value="${h}">${fmtN(h)} ч</option>`).join("")}</select>
-      <span class="row" style="gap:6px"><a class="btn btn-sm" href="shortcuts://run-shortcut?name=${encodeURIComponent("Kalashnikov Сон")}">1. Сон с часов</a><button class="btn-sm" data-a="sleepPaste" data-day="${k}">2. Вставить</button></span></label>
+    <div class="grid2"><label class="field">Сон<select id="sleep-${k}" data-c="sleep" data-day="${k}"><option value="">—</option>${[...Array(13)].map((_,i)=>4+i/2).map(h=>`<option ${num(d.sleep)===h&&d.sleep!==""?"selected":""} value="${h}">${fmtN(h)} ч</option>`).join("")}</select></label>
     <div class="field"><span class="small muted">Энергия</span><div class="pickrow">${[1,2,3,4,5].map(n=>`<button aria-pressed="${d.energy===n}" data-a="energy" data-day="${k}" data-v="${n}" aria-label="Энергия ${n}">${n}⚡</button>`).join("")}</div></div></div>
     <div class="field"><span class="small muted">Настроение</span><div class="pickrow">${MOODS.map((m,i)=>`<button aria-pressed="${d.mood===i+1}" data-a="mood" data-day="${k}" data-v="${i+1}" aria-label="Настроение ${i+1}">${m}</button>`).join("")}</div></div>
     <label class="field">Урок дня<textarea id="lesson-${k}" data-i="lesson" data-day="${k}" placeholder="Что понял или выучил сегодня">${esc(d.lesson||"")}</textarea></label></section>
@@ -709,17 +691,6 @@ function vRecurring(){ const rs=settings().recurring||[], sel=UI.recDays||[];
    <div class="pickrow">${WDS.map((n,i)=>`<button aria-pressed="${sel.includes(i)}" data-a="recDay" data-v="${i}">${n}</button>`).join("")}</div>
    <div class="row"><button class="btn-sm" data-a="recPreset" data-v="work">Будни</button><button class="btn-sm" data-a="recPreset" data-v="all">Каждый день</button><span class="grow"></span><button data-a="addRec">Добавить</button></div></section>`;
 }
-function vSleepSetup(){
-  return `<section class="card"><h2>Сон с часов</h2><p class="small muted" style="margin:0">Huawei Health передаёт длительность сна в «Здоровье» на iPhone, а быстрая команда забирает её оттуда. Сайт сам читать «Здоровье» не может, поэтому нужен этот мост — настраивается один раз.</p>
-   <details class="art"><summary>Как собрать команду (5 действий)</summary><ol class="small" style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
-    <li>Huawei Health → «Я» → «Настройки» → «Данные» → «Здоровье»: включи передачу сна. Проверь, что в приложении «Здоровье» → «Сон» видны ночи с часов.</li>
-    <li>«Команды» → «+» → назови команду точно: <b>Kalashnikov Сон</b>.</li>
-    <li>Добавь действие → «Приложения» → «Здоровье» → <b>«Найти данные Здоровья»</b>. Нажми «Тип» и выбери <b>«Сон»</b> (быстрее всего — набрать «сон» в поиске). Фильтр «Дата начала» → «за последние» → <b>1 день</b>. Если «за последние» нет, выбери «после» → «Вчера».</li>
-    <li>Добавь <b>«Повторить с каждым»</b>. Внутрь перетащи действие <b>«Текст»</b> и собери в нём: переменная «Повторяемый объект» → нажми на неё → <b>«Дата начала»</b>, затем символ <b>|</b>, затем снова «Повторяемый объект» → <b>«Дата окончания»</b>. Формат дат можно не трогать: приложение поймёт любой.</li>
-    <li>После «Повторить» добавь <b>«Текст»</b>: напиши <b>KSLEEP</b>, перейди на новую строку и вставь переменную <b>«Результаты повтора»</b>. Последнее действие — <b>«Скопировать в буфер обмена»</b>.</li>
-   </ol><p class="small muted" style="margin:0">Если хочешь, чтобы «В постели» не считалось сном, добавь в текст внутри повтора ещё <b>|</b> и «Повторяемый объект» → «Значение» — необязательно.</p></details>
-   <p class="small" style="margin:0">Каждое утро на экране «Сегодня» в блоке «Состояние»: нажми <b>«1. Сон с часов»</b>, вернись в приложение и нажми <b>«2. Вставить»</b>. Время округлится до получаса.</p></section>`;
-}
 function vTelegram(){ const t=TG.get();
   return `<section class="card"><div class="row between"><h2>Сигнал в Telegram</h2>${t.on&&t.chat?'<span class="chip up">Включён</span>':""}</div>
    <p class="small muted" style="margin:0">Когда отдых закончится, твой бот пришлёт сообщение. Telegram показывает его на часах Huawei. Ключ бота хранится только в этом телефоне и не попадает в резервную копию.</p>
@@ -751,7 +722,6 @@ function vSettings(){
      :'<button class="btn-primary" data-a="notifyOn">Включить уведомления</button>'}
    ${canNotify()&&Notification.permission==="granted"?'<button data-a="notifyTest">Проверить: уведомление через 5 секунд</button>':""}</section>
   ${vRecurring()}
-  ${vSleepSetup()}
   ${vTelegram()}
   <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
    ${Store.downloads||Store.mode==="local"?`<button data-a="export">Скачать резервную копию (JSON)</button>`:""}
@@ -907,11 +877,6 @@ const ACT={
   tgReset:()=>{ TG.set({}) },
   tgOpt:d=>{ const t=TG.get(); TG.set({...t,[d.k]:t[d.k]===false}) },
   tgBackupNow:async()=>{ toast("Отправляю копию…"); const ok=await tgBackup(true); toast(ok?"Копия отправлена боту в Telegram":"Не отправилось. Проверь интернет и бота."); render(); return false },
-  sleepPaste:async d=>{ let txt=""; try{ txt=await navigator.clipboard.readText() }catch(e){}
-    if(!txt.startsWith("KSLEEP")){ toast(txt?"В буфере нет данных о сне. Сначала нажми «1. Сон с часов».":"Не удалось прочитать буфер. Разреши вставку и попробуй ещё раз."); return false }
-    const r=parseSleep(txt,d.day); if(!r||!r.h){ toast("В «Здоровье» нет сна за эту ночь. Проверь, что Huawei Health передаёт сон в «Здоровье»."); return false }
-    day(d.day).sleep=String(r.h); saveDay(d.day); const hm=t=>{const x=new Date(t); return pad(x.getHours())+":"+pad(x.getMinutes())};
-    toast(`Сон ${fmtN(r.h)} ч (${hm(r.from)}–${hm(r.to)})`); render(); return false },
   recDay:d=>{ const s2=new Set(UI.recDays||[]); const v=+d.v; s2.has(v)?s2.delete(v):s2.add(v); UI.recDays=[...s2].sort() },
   recPreset:d=>{ UI.recDays=d.v==="all"?[0,1,2,3,4,5,6]:[0,1,2,3,4] },
   addRec:()=>{ const v=(document.getElementById("rec-text")?.value||"").trim(); const days=UI.recDays||[]; if(!v||!days.length){ toast("Напиши задачу и выбери дни"); return }
