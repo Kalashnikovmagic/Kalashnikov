@@ -61,6 +61,10 @@ button.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
 .box svg{width:14px;height:14px;opacity:0}
 .box[aria-checked=true] svg{opacity:1}
 .check .txt{flex:1;min-width:0;overflow-wrap:anywhere}
+.check.multi{flex-wrap:wrap}
+.parts{flex-basis:100%;display:flex;gap:6px;padding-left:34px}
+.part{flex:1;min-width:0;height:32px;padding:0;border-radius:9px;font-size:13px;font-variant-numeric:tabular-nums}
+.part[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .check.done .txt{color:var(--muted);text-decoration:line-through}
 .x{background:transparent;color:var(--muted);padding:4px 6px;font-size:18px;line-height:1}
 .add{display:flex;gap:6px}
@@ -300,6 +304,11 @@ const COLLS=["meta","weeks","workouts","body"];
 const DEFAULT_SETTINGS={habits:[{id:"h1",name:"Витамины"},{id:"h2",name:"Вести КБЖУ"}],target:null,profile:{sex:"m",age:"",height:"",weight:"",activity:1.55,goal:"keep"},customPrograms:[],theme:""};
 const Store={mode:"loading",db:null,assets:null,downloads:null,sample:null,pending:new Map(),loaded:new Set()};
 function settings(){ if(!S.meta.settings) S.meta.settings=structuredClone(DEFAULT_SETTINGS); return S.meta.settings }
+// Привычка из нескольких блоков: отметки блоков в d.hp[id], сама привычка закрыта, когда отмечены все
+const hParts=h=>Math.max(1,h.parts||1);
+function hpOf(d,h){ const n=hParts(h), a=(d?.hp?.[h.id]||[]).slice(0,n); while(a.length<n) a.push(!!d?.habits?.[h.id]&&n>0&&!(d?.hp?.[h.id])); return a }
+function migrate(){ const st=settings(); if(st.mig1) return; const v=st.habits.find(h=>/витамин/i.test(h.name)); if(v&&!v.parts) v.parts=3;
+  if(!st.habits.some(h=>/отжиман/i.test(h.name))) st.habits.push({id:"h"+uid(),name:"Отжимания",parts:5}); st.mig1=true; save("meta","settings") }
 function save(coll,id){
   if(Store.mode==="local"){ try{localStorage.setItem("zh_"+coll,JSON.stringify(S[coll]))}catch(e){ toast("Память браузера заполнена: удали старые фото или сделай копию в настройках") } return }
   const key=coll+"/"+id; clearTimeout(Store.pending.get(key));
@@ -445,7 +454,8 @@ function vToday(){
   ${needBody?`<div class="banner row between"><span>${lb?"Больше недели без замеров.":"Замеров ещё нет."} Впиши вес и талию — без них не видно, как идёт рекомпозиция.</span><button class="btn-sm" data-a="go" data-v="progress">Вписать</button></div>`:""}
   <section class="card">${train}</section>
   <section class="card"><div class="row between"><h2>Привычки и задачи</h2><span class="chip ${st.total&&st.done===st.total?"up":"acc"}">${st.done} из ${st.total}</span></div>
-    <div>${hab.map(h=>`<div class="check ${d.habits?.[h.id]?"done":""}">${box(d.habits?.[h.id],`data-a="habit" data-id="${h.id}" aria-label="${esc(h.name)}"`)}<span class="txt">${esc(h.name)}</span>${(n=>n>=2?`<span class="chip up">${n} дн. подряд</span>`:'<span class="chip">привычка</span>')(streak(h.id))}</div>`).join("")}
+    <div>${hab.map(h=>{const n=hParts(h), a=hpOf(d,h), c=a.filter(Boolean).length; return `<div class="check ${d.habits?.[h.id]?"done":""} ${n>1?"multi":""}">${box(d.habits?.[h.id],`data-a="habit" data-id="${h.id}" aria-label="${esc(h.name)}"`)}<span class="txt">${esc(h.name)}${n>1?` <span class="muted small num">${c}/${n}</span>`:""}</span>${(s2=>s2>=2?`<span class="chip up">${s2} дн. подряд</span>`:'<span class="chip">привычка</span>')(streak(h.id))}
+      ${n>1?`<div class="parts">${a.map((on,i)=>`<button class="part" aria-pressed="${on}" data-a="habitPart" data-id="${h.id}" data-i="${i}" aria-label="${esc(h.name)}: блок ${i+1}">${i+1}</button>`).join("")}</div>`:""}</div>`}).join("")}
     ${(d.tasks||[]).map(x=>`<div class="check ${x.done?"done":""}">${box(x.done,`data-a="task" data-day="${k}" data-id="${x.id}" aria-label="${esc(x.text)}"`)}<span class="txt">${esc(x.text)}${x.rid?' <span class="chip">повтор</span>':""}</span>${x.done?"":`<button class="btn-sm" data-a="moveTask" data-day="${k}" data-id="${x.id}" aria-label="Перенести «${esc(x.text)}» на завтра">→ завтра</button>`}<button class="x" data-a="delTask" data-day="${k}" data-id="${x.id}" aria-label="Удалить">×</button></div>`).join("")}</div>
     <div class="add"><input id="add-task-${k}" placeholder="Новая задача на день" data-enter="addTask" data-day="${k}" autocomplete="off"><button data-a="addTask" data-day="${k}">Добавить</button></div>
     <button class="btn-ghost" style="align-self:flex-start" data-a="go" data-v="more" data-m="settings">Изменить список привычек</button></section>
@@ -758,8 +768,9 @@ function vSettings(){
   const s=settings(); const th=s.theme||"";
   return `<header><div class="eyebrow">Настройки</div><h1>Под себя</h1></header>
   <section class="card"><h2>Ежедневные привычки</h2><p class="small muted" style="margin:0">Появляются в каждом дне и считаются в проценте выполнения.</p>
-   <div>${s.habits.map(h=>`<div class="check"><span class="txt">${esc(h.name)}</span><button class="x" data-a="delHabit" data-id="${h.id}" aria-label="Удалить привычку">×</button></div>`).join("")}</div>
-   <div class="add"><input id="add-habit" placeholder="Новая привычка" data-enter="addHabit" autocomplete="off"><button data-a="addHabit">Добавить</button></div></section>
+   <div>${s.habits.map(h=>`<div class="check"><span class="txt">${esc(h.name)}</span><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="icon-btn" data-a="habitParts" data-id="${h.id}" data-v="-1" aria-label="Меньше блоков" ${hParts(h)<2?"disabled":""}>−</button><span class="small num" style="min-width:64px;text-align:center">${hParts(h)>1?(hParts(h)+" блока").replace(/^([5-9]|10) блока$/,"$1 блоков"):"1 блок"}</span><button class="icon-btn" data-a="habitParts" data-id="${h.id}" data-v="1" aria-label="Больше блоков" ${hParts(h)>=10?"disabled":""}>+</button></span><button class="x" data-a="delHabit" data-id="${h.id}" aria-label="Удалить привычку">×</button></div>`).join("")}</div>
+   <p class="small muted" style="margin:0">Блоки — части привычки, например 3 приёма витаминов или 5 подходов отжиманий. Привычка закрывается, когда отмечены все блоки.</p>
+   <div class="add"><input id="add-habit" placeholder="Новая привычка" data-enter="addHabit" autocomplete="off"><select id="add-habit-parts" style="width:auto" aria-label="Сколько блоков">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n} бл.</option>`).join("")}</select><button data-a="addHabit">Добавить</button></div></section>
   ${vRecurring()}
   ${vTelegram()}
   <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
@@ -846,7 +857,8 @@ const ACT={
   dayShift:d=>{UI.day=ymd(addDays(parseYmd(UI.day),+d.v))}, dayToday:()=>{UI.day=todayKey()},
   openDay:d=>{UI.day=d.day; UI.tab="today"; scrollTo(0,0)},
   weekShift:d=>{UI.weekOff+=+d.v}, weekNow:()=>{UI.weekOff=0},
-  habit:d=>{const k=UI.day,x=day(k); x.habits=x.habits||{}; x.habits[d.id]=!x.habits[d.id]; saveDay(k)},
+  habit:d=>{const k=UI.day,x=day(k); x.habits=x.habits||{}; const on=!x.habits[d.id]; x.habits[d.id]=on; const h=settings().habits.find(h=>h.id===d.id); if(h&&hParts(h)>1) x.hp={...(x.hp||{}),[d.id]:Array(hParts(h)).fill(on)}; saveDay(k)},
+  habitPart:d=>{const k=UI.day,x=day(k), h=settings().habits.find(h=>h.id===d.id); if(!h) return; const a=hpOf(x,h); a[+d.i]=!a[+d.i]; x.hp={...(x.hp||{}),[h.id]:a}; x.habits={...(x.habits||{}),[h.id]:a.every(Boolean)}; saveDay(k); if(a.every(Boolean)) toast(h.name+": всё выполнено")},
   task:d=>{const x=day(d.day).tasks.find(t=>t.id===d.id); if(x){x.done=!x.done; saveDay(d.day)}},
   delTask:d=>{const x=day(d.day); const t=x.tasks.find(t=>t.id===d.id); if(t?.rid) x.skipR={...(x.skipR||{}),[t.rid]:true}; x.tasks=x.tasks.filter(t=>t.id!==d.id); saveDay(d.day)},
   moveTask:d=>{const x=day(d.day), t=x.tasks.find(t=>t.id===d.id); if(!t) return; const next=ymd(addDays(parseYmd(d.day),1));
@@ -934,7 +946,8 @@ const ACT={
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
-  addHabit:()=>{const inp=document.getElementById("add-habit"); const v=inp?.value.trim(); if(!v) return; settings().habits.push({id:"h"+uid(),name:v}); save("meta","settings"); inp.value=""},
+  addHabit:()=>{const inp=document.getElementById("add-habit"); const v=inp?.value.trim(); if(!v) return; const n=+(document.getElementById("add-habit-parts")?.value||1); settings().habits.push({id:"h"+uid(),name:v,...(n>1?{parts:n}:{})}); save("meta","settings"); inp.value=""},
+  habitParts:d=>{const h=settings().habits.find(h=>h.id===d.id); if(!h) return; h.parts=Math.min(10,Math.max(1,hParts(h)+(+d.v))); save("meta","settings")},
   delHabit:d=>{const s=settings(); s.habits=s.habits.filter(h=>h.id!==d.id); save("meta","settings")},
   theme:d=>{settings().theme=d.v; applyTheme(); save("meta","settings")},
   export:async()=>{ const fn="kalashnikov-"+todayKey()+".json", data=JSON.stringify({meta:S.meta,weeks:S.weeks,workouts:S.workouts,body:S.body},null,1);
@@ -1005,7 +1018,7 @@ async function boot(){
       },err=>toast("Нет связи с хранилищем: "+(err?.code||"ошибка")+". Обнови страницу."));
     }
   } else {
-    Store.mode="local"; try{ navigator.storage?.persist?.() }catch(e){} for(const c of COLLS){ try{ const v=localStorage.getItem("zh_"+c); if(v) S[c]=JSON.parse(v) }catch(e){} } applyTheme(); render(); setTimeout(()=>tgBackup(false),3000);
+    Store.mode="local"; try{ navigator.storage?.persist?.() }catch(e){} for(const c of COLLS){ try{ const v=localStorage.getItem("zh_"+c); if(v) S[c]=JSON.parse(v) }catch(e){} } applyTheme(); migrate(); render(); setTimeout(()=>tgBackup(false),3000);
   }
 }
 boot();
