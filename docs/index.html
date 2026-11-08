@@ -674,6 +674,13 @@ function vSettings(){
   <section class="card"><h2>Ежедневные привычки</h2><p class="small muted" style="margin:0">Появляются в каждом дне и считаются в проценте выполнения.</p>
    <div>${s.habits.map(h=>`<div class="check"><span class="txt">${esc(h.name)}</span><button class="x" data-a="delHabit" data-id="${h.id}" aria-label="Удалить привычку">×</button></div>`).join("")}</div>
    <div class="add"><input id="add-habit" placeholder="Новая привычка" data-enter="addHabit" autocomplete="off"><button data-a="addHabit">Добавить</button></div></section>
+  <section class="card"><h2>Уведомления на часы</h2>
+   <p class="small muted" style="margin:0">Когда отдых закончится, iPhone покажет уведомление, а Huawei Health перешлёт его на часы. Работает, когда приложение открыто с экрана «Домой».</p>
+   ${!canNotify()?'<div class="banner">Уведомления здесь недоступны. Открой Kalashnikov с иконки на экране «Домой» (нужна iOS 16.4 или новее).</div>'
+     :Notification.permission==="granted"?'<span class="chip up" style="align-self:flex-start">Включены</span>'
+     :Notification.permission==="denied"?'<div class="banner">Уведомления запрещены. Разреши их: Настройки iPhone → Уведомления → Kalashnikov.</div>'
+     :'<button class="btn-primary" data-a="notifyOn">Включить уведомления</button>'}
+   ${canNotify()&&Notification.permission==="granted"?'<button data-a="notifyTest">Проверить: уведомление через 5 секунд</button>':""}</section>
   <section class="card"><h2>Данные</h2><p class="small muted" style="margin:0">${Store.mode==="db"?"Данные хранятся в твоём личном хранилище этого приложения. Видеть и менять их можешь только ты.":"Данные хранятся только в этом браузере на этом устройстве. Раз в неделю скачивай резервную копию: если очистить данные браузера, без копии всё пропадёт."}</p>
    ${Store.downloads||Store.mode==="local"?`<button data-a="export">Скачать резервную копию (JSON)</button>`:""}
    <label class="btn" for="import-in">Восстановить из копии</label><input id="import-in" type="file" accept="application/json,.json" hidden data-c="import"></section>`;
@@ -714,10 +721,16 @@ function renderRest(){
   if(!rest.end||left<=-3){ el.innerHTML=""; return }
   el.innerHTML=`<div class="restbar"><div class="in"><span class="t">${left>0?mmss(left):"Пора!"}</span><div class="bar"><i style="width:${Math.max(0,left/rest.total*100)}%"></i></div><button class="btn-sm" data-a="restAdd">+30</button><button class="btn-sm" data-a="restStop">Стоп</button></div></div>`;
 }
-function startRest(sec){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; renderRest() }
+function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
+// Уведомление iPhone → часы (Huawei Health пересылает уведомления из Центра уведомлений). На iOS работает в приложении с экрана «Домой», iOS 16.4+.
+const canNotify=()=>"Notification" in window;
+async function notify(title,body){ if(!canNotify()||Notification.permission!=="granted") return false;
+  const opts={body,tag:"rest",renotify:true,requireInteraction:false,icon:"icon-192.png?v=2",badge:"icon-192.png?v=2"};
+  try{ const reg=await navigator.serviceWorker?.getRegistration(); if(reg){ await reg.showNotification(title,opts); return true } }catch(e){}
+  try{ new Notification(title,opts); return true }catch(e){ return false } }
 function beep(){ try{ if(!audioCtx) return; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.value=880; g.gain.setValueAtTime(.2,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.6); o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+.6) }catch(e){} try{navigator.vibrate?.([200,100,200])}catch(e){} }
 setInterval(()=>{
-  if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep() } if(left<=-3){ rest.end=0 } renderRest() }
+  if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep(); notify("Отдых окончен",rest.label?"Следующий подход: "+rest.label:"Пора на следующий подход") } if(left<=-3){ rest.end=0 } renderRest() }
   const el=document.getElementById("wk-el"); const id=UI.openWorkout||activeWorkout(); const w=id&&S.workouts[id]; if(el&&w&&!w.finishedAt) el.textContent=mmss((Date.now()-w.startedAt)/1000);
 },1000);
 let wakeLock=null; async function keepAwake(){ try{ wakeLock=await navigator.wakeLock?.request("screen") }catch(e){} }
@@ -777,7 +790,7 @@ const ACT={
   cardio:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.type=d.v; save("workouts",d.id)},
   cardioDone:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.done=!w.cardio.done; save("workouts",d.id)},
   setDone:d=>{const [w,e]=findEx(d); const s=e.sets[+d.j]; s.done=!s.done; if(s.done&&!s.w){const p=document.getElementById(`w-${e.id}-${d.j}`)?.placeholder; if(p) s.w=p} if(s.done&&!s.r){const p=document.getElementById(`r-${e.id}-${d.j}`)?.placeholder; if(p) s.r=p}
-    save("workouts",d.id); if(s.done&&!w.finishedAt){ const p=partner(w,e); if(p&&w.ex.indexOf(e)<w.ex.indexOf(p)) toast("Без отдыха → "+exName(p.exId)); else startRest(p?Math.max(e.rest||120,p.rest||120):(e.rest||120)) }},
+    save("workouts",d.id); if(s.done&&!w.finishedAt){ const p=partner(w,e); if(p&&w.ex.indexOf(e)<w.ex.indexOf(p)) toast("Без отдыха → "+exName(p.exId)); else { const first=p?w.ex[Math.min(w.ex.indexOf(e),w.ex.indexOf(p))]:e; startRest(p?Math.max(e.rest||120,p.rest||120):(e.rest||120),exName(first.exId)) } }},
   addSet:d=>{const [,e]=findEx(d); const l=e.sets[e.sets.length-1]; e.sets.push({w:l?.w??"",r:"",done:false}); save("workouts",d.id)},
   delSet:d=>{const [,e]=findEx(d); if(e.sets.length>1){e.sets.pop(); save("workouts",d.id)}},
   delEx:d=>{const w=S.workouts[d.id]; const e=w.ex.find(x=>x.id===d.e); if(e?.ss) w.ex.forEach(x=>{ if(x.ss===e.ss) delete x.ss }); w.ex=w.ex.filter(x=>x.id!==d.e); save("workouts",d.id)},
@@ -799,6 +812,8 @@ const ACT={
   delProg:d=>{const s=settings(); s.customPrograms=s.customPrograms.filter(p=>p.id!==d.id); save("meta","settings")},
   addWork:d=>{const v=num(document.getElementById("work-in")?.value); if(!v){toast("Впиши число");return} const it=working().items[d.ex]||(working().items[d.ex]={h:[],u:EX[d.ex]?.bw?"повт.":"кг"}); it.h.push(v); save("meta","working")},
   undoWork:d=>{const it=working().items[d.ex]; if(it?.h.length){ it.h.pop(); save("meta","working") }},
+  notifyOn:async()=>{ try{ await Notification.requestPermission() }catch(e){} render(); if(Notification.permission==="granted") notify("Kalashnikov","Уведомления включены. Так будет выглядеть сигнал об окончании отдыха."); return false },
+  notifyTest:()=>{ toast("Жди 5 секунд, приложение не закрывай"); setTimeout(()=>{ beep(); notify("Отдых окончен","Следующий подход: проверка уведомлений") },5000) },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
