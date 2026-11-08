@@ -1003,7 +1003,7 @@ function vRecipes(){
    <div class="row small"><span class="muted">${r.unit?"Сколько":"Порция"}</span>${(r.scales||[0.5,1,1.5,2]).map(v=>`<button class="chip" aria-pressed="${R.sc===v}" data-a="rscale" data-r="${ri}" data-v="${v}">${r.unit?fmtN(v)+" "+r.unit:"×"+fmtN(v)}</button>`).join("")}</div>
    ${r.fixed?`<p class="small muted" style="margin:0">${esc(r.note||"КБЖУ на порцию по твоим данным")}</p>`:""}
    <div>${R.lines.map(l=>`<div class="check small"><span class="txt">${esc(l.fd.n)}</span><span class="muted num">${esc(l.u||fmtN(Math.round(l.g))+" г")}</span><span class="num" style="min-width:64px;text-align:right">${Math.round(l.k)} ккал</span></div>`).join("")}</div>
-   <div class="row"><button class="btn-sm" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button>${r.my?`<span class="grow"></span><button class="btn-sm" data-a="recipeEdit" data-id="${r.id}">Изменить</button><button class="btn-sm btn-danger" data-a="recipeDelAsk" data-id="${r.id}">Удалить</button>`:""}</div></section>`}).join("")||'<div class="empty">Своих блюд пока нет. Нажми «+ Новое блюдо или продукт».</div>'}
+   <div class="row"><button class="btn-sm" data-a="recipeAdd" data-v="${ri}">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button>${r.fixed?"":`<button class="btn-sm" data-a="recipeTweak" data-v="${ri}">Изменить состав</button>`}${r.my?`<span class="grow"></span><button class="btn-sm" data-a="recipeEdit" data-id="${r.id}">Изменить</button><button class="btn-sm btn-danger" data-a="recipeDelAsk" data-id="${r.id}">Удалить</button>`:""}</div></section>`}).join("")||'<div class="empty">Своих блюд пока нет. Нажми «+ Новое блюдо или продукт».</div>'}
   <p class="small muted" style="margin:0">КБЖУ посчитано по базе FatSecret на 100 г продукта и граммовке рецепта.</p>`;
 }
 function vKB(){ return `<header><div class="eyebrow">База знаний</div><h1>Коротко о главном</h1></header>${ARTICLES.map(a=>`<details class="art"><summary>${a.n}</summary><ul>${a.b.map(x=>`<li>${x}</li>`).join("")}</ul></details>`).join("")}` }
@@ -1189,6 +1189,12 @@ function countUp(root){ const els=[...root.querySelectorAll("[data-count]")]; co
 // Перерисовать картинку в окне отчёта под выбранный формат
 async function redrawReport(){ const sh=UI.sheet; if(!sh||sh.type!=="report"||!sh.R) return; if(sh.url) URL.revokeObjectURL(sh.url); sh.url=null; renderSheet();
   const blob=sh.kind==="overlay"?await overlayImage(sh.R,{style:sh.ostyle||"panel"}):await reportImage(sh.R); if(UI.sheet!==sh) return; UI.reportBlob=blob; sh.url=URL.createObjectURL(blob); renderSheet() }
+// Разовая правка состава: только для этого добавления, рецепт не меняется
+function tweakCalc(T){ const R=recipeCalc(T.ri); const lines=R.lines.map((l,j)=>{ const g=T.off[j]?0:num(T.g[j]), m=g/100; return {...l,g,k:l.fd.k*m,p:l.fd.p*m,f:l.fd.f*m,c:l.fd.c*m,changed:!T.off[j]&&Math.round(g)!==Math.round(l.g)} });
+  const t=lines.reduce((a,l)=>({k:a.k+l.k,p:a.p+l.p,f:a.f+l.f,c:a.c+l.c}),{k:0,p:0,f:0,c:0}); const off=R.lines.filter((l,j)=>T.off[j]).map(l=>l.fd.n.split(" (")[0].toLowerCase());
+  const notes=[off.length?"без "+off.join(", "):"",lines.some(l=>l.changed)?"свои граммы":""].filter(Boolean);
+  return {R,lines,t,label:R.label+(notes.length?" — "+notes.join("; "):"")} }
+function tweakTotalTxt(T){ const t=tweakCalc(T).t; return `Итого: <b class="num">${Math.round(t.k)} ккал</b> · Б ${fmtN(r1(t.p))} · Ж ${fmtN(r1(t.f))} · У ${fmtN(r1(t.c))} г` }
 function draftTotal(D){ if(D.mode==="fixed") return {k:num(D.fx.k),p:num(D.fx.p),f:num(D.fx.f),c:num(D.fx.c)}; return D.items.reduce((a,it)=>{ const fd=foodById(it.f), m=num(it.g)/100; return {k:a.k+fd.k*m,p:a.p+fd.p*m,f:a.f+fd.f*m,c:a.c+fd.c*m} },{k:0,p:0,f:0,c:0}) }
 function draftTotalTxt(D){ const t=draftTotal(D); return `Итого${D.mode==="fixed"?" на порцию":""}: <b class="num">${Math.round(t.k)} ккал</b> · Б ${fmtN(r1(t.p))} · Ж ${fmtN(r1(t.f))} · У ${fmtN(r1(t.c))} г` }
 function renderSheet(){
@@ -1238,13 +1244,18 @@ function renderSheet(){
     body=`<h2>Добавить еду${k===todayKey()?"":" · "+fmtD(k)}</h2>${segBar([["fav","Частое"],["rec","Рецепты"],["man","Вручную"]],tab,"addTab","Способ")}
      ${tab==="fav"?(fav.length?`<div class="row">${fav.map((f,i)=>`<button class="chip" data-a="favAdd" data-day="${k}" data-i="${i}">+ ${esc(f.n)} · ${Math.round(num(f.k))}</button>`).join("")}</div>`:'<div class="empty">Здесь появится еда, которую ты записываешь чаще всего</div>')
         +(yd.length?`<button data-a="foodRepeat" data-day="${k}">Повторить вчерашний день (${yd.length})</button>`:""):""}
-     ${tab==="rec"?`<button class="btn-ghost btn-sm" style="align-self:flex-start;padding-left:0" data-a="recipeNew">+ Новое блюдо или продукт</button>`+allRecipes().map((r,ri)=>{const R=recipeCalc(ri); return `<button class="pick" data-a="recipeAdd" data-v="${ri}"><span><b>${esc(R.label)}</b><br><span class="small muted">Б ${Math.round(R.t.p)} · Ж ${Math.round(R.t.f)} · У ${Math.round(R.t.c)} г</span></span><span class="num">+ ${Math.round(R.t.k)}</span></button>`}).join("")+'<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="go" data-v="food" data-m="recipes">Порции и варианты — в «Рецептах» ›</button>':""}
+     ${tab==="rec"?`<button class="btn-ghost btn-sm" style="align-self:flex-start;padding-left:0" data-a="recipeNew">+ Новое блюдо или продукт</button>`+allRecipes().map((r,ri)=>{const R=recipeCalc(ri); const pk=`<button class="pick" data-a="recipeAdd" data-v="${ri}"><span><b>${esc(R.label)}</b><br><span class="small muted">Б ${Math.round(R.t.p)} · Ж ${Math.round(R.t.f)} · У ${Math.round(R.t.c)} г</span></span><span class="num">+ ${Math.round(R.t.k)}</span></button>`; return r.fixed?pk:`<div class="row" style="flex-wrap:nowrap;gap:6px">${pk}<button class="btn-sm" style="flex:none;align-self:stretch" data-a="recipeTweak" data-v="${ri}" aria-label="Изменить состав: ${esc(r.n)}">Состав</button></div>`}).join("")+'<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="go" data-v="food" data-m="recipes">Порции и варианты — в «Рецептах» ›</button>':""}
      ${tab==="man"?`<div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div><div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div><label class="check" style="border:0"><input id="fd-save" type="checkbox" style="width:22px;height:22px"><span class="txt small">Запомнить как блюдо — потом добавлять одним нажатием</span></label><button class="btn-primary" data-a="addFood" data-day="${k}">Записать</button>`:""}` }
   else if(sh.type==="photo"){ const id=S.body[sh.k]?.photos?.[sh.i]; if(!id){ UI.sheet=null; el.innerHTML=""; return }
     body=`<h2>Фото · ${fmtD(sh.k)}</h2><img src="${photoSrc(id)}" alt="Фото ${fmtD(sh.k)}" style="width:100%;border-radius:14px">
      <div class="row" style="flex-wrap:nowrap;align-items:flex-end"><label class="field grow">Дата фото<input id="photo-move" type="date" value="${sh.k}" max="${todayKey()}"></label><button data-a="photoMove">Сохранить дату</button></div>
      ${sh.confirm?`<p style="margin:0">Удалить это фото? Вернуть его будет нельзя${TG.get().chat?" (если оно не попало в резервную копию в Telegram)":""}.</p><div class="row"><button class="grow" data-a="photoNo">Оставить</button><button class="grow btn-danger" data-a="photoDel">Удалить</button></div>`
        :`<button class="btn-danger" data-a="photoAsk">Удалить фото</button>`}` }
+  else if(sh.type==="recipeTweak"){ const T=sh.T, X=tweakCalc(T), k=UI.day;
+    body=`<h2>${esc(X.R.r.n)}</h2><p class="small muted" style="margin:0">Убери лишнее или поменяй граммы. Это только для этого добавления — сам рецепт останется как был.</p>
+     <div class="stack">${X.lines.map((l,j)=>`<div class="row" style="flex-wrap:nowrap;${T.off[j]?"opacity:.45":""}"><input type="checkbox" ${T.off[j]?"":"checked"} data-a="twOff" data-j="${j}" style="width:22px;height:22px;flex:none" aria-label="Оставить ${esc(l.fd.n)}"><span class="grow small" style="${T.off[j]?"text-decoration:line-through":""}">${esc(l.fd.n)}</span><input type="number" inputmode="decimal" style="width:76px" value="${esc(T.g[j])}" data-i="twG" data-j="${j}" id="tw-g-${j}" ${T.off[j]?"disabled":""} aria-label="Граммы"><span class="small muted">г</span><span class="num small" id="tw-k-${j}" style="min-width:58px;text-align:right">${Math.round(l.k)} ккал</span></div>`).join("")}</div>
+     <p style="margin:0" id="tw-total">${tweakTotalTxt(T)}</p>
+     <div class="row"><button class="grow" data-a="twReset">Как в рецепте</button><button class="grow btn-primary" data-a="twAdd">Добавить в ${k===todayKey()?"сегодня":fmtD(k)}</button></div>` }
   else if(sh.type==="recipeDel"){ const r=(settings().myRecipes||[]).find(x=>x.id===sh.id); body=`<h2>Удалить «${esc(r?.n||"")}»?</h2><p class="muted" style="margin:0">Блюдо пропадёт из рецептов. Уже записанная еда в дневнике останется.</p><div class="row"><button class="grow" data-a="sheetClose">Оставить</button><button class="grow btn-danger" data-a="recipeDel" data-id="${sh.id}">Удалить</button></div>` }
   else if(sh.type==="recipeEdit"){ const D=sh.draft, fx=D.mode==="fixed", ids=[...Object.keys(FOOD),...Object.keys(settings().myFoods||{})];
     const inp=(k,ph,v,type="number")=>`<input type="${type}" ${type==="number"?'inputmode="decimal"':""} placeholder="${ph}" value="${esc(v??"")}" data-i="drField" data-k="${k}" id="dr-${k.replace(".","-")}">`;
@@ -1339,6 +1350,11 @@ const ACT={
     const x=day(d.day); x.food=x.food||[]; x.food.push({id:uid(),n:n||"Приём пищи",k:num(g("fd-k")),p:num(g("fd-p")),f:num(g("fd-f")),c:num(g("fd-c"))}); saveDay(d.day); toast("Записано: "+(n||"Приём пищи"))},
   delFood:d=>{const x=day(d.day); x.food=(x.food||[]).filter(f=>f.id!==d.id); saveDay(d.day)},
   recipeAdd:d=>{const R=recipeCalc(+d.v),t=R.t; const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:R.label,k:Math.round(t.k),p:r1(t.p),f:r1(t.f),c:r1(t.c)}); saveDay(UI.day); toast("Добавлено: "+R.r.n)},
+  recipeTweak:d=>{ const ri=+d.v, R=recipeCalc(ri); UI.sheet={type:"recipeTweak",T:{ri,g:R.lines.map(l=>Math.round(l.g)),off:{}}} },
+  twOff:d=>{ const T=UI.sheet.T; T.off[d.j]=!T.off[d.j] },
+  twReset:()=>{ const T=UI.sheet.T; T.g=recipeCalc(T.ri).lines.map(l=>Math.round(l.g)); T.off={} },
+  twAdd:()=>{ const X=tweakCalc(UI.sheet.T), t=X.t; if(!X.lines.some(l=>l.g>0)){ toast("Оставь хотя бы один продукт"); return false }
+    const x=day(UI.day); x.food=x.food||[]; x.food.push({id:uid(),n:X.label,k:Math.round(t.k),p:r1(t.p),f:r1(t.f),c:r1(t.c)}); saveDay(UI.day); UI.sheet=null; toast("Добавлено: "+X.R.r.n) },
   rsel:d=>{const m=UI.rsel[d.r]||(UI.rsel[d.r]={}); m[d.i]=+d.v},
   rtag:d=>{UI.recipeTag=d.v},
   setTarget:()=>{const r=mifflin(settings().profile); if(r){settings().target={kcal:r.kcal,p:r.p,f:r.f,c:r.c}; save("meta","settings"); toast("Норма сохранена")}},
@@ -1480,6 +1496,7 @@ const INP={
   progName:(d,t)=>{UI.sheet.name=t.value; return false},
   renameIn:(d,t)=>{UI.sheet.name=t.value; return false},
   drField:(d,t)=>{ const D=UI.sheet.draft, [a,k2]=d.k.split("."); if(k2) D[a][k2]=t.value; else D[a]=t.value; const el=document.getElementById("dr-total"); if(el) el.innerHTML=draftTotalTxt(D); return false },
+  twG:(d,t)=>{ const T=UI.sheet.T; T.g[+d.j]=t.value; const l=tweakCalc(T).lines[+d.j]; const ek=document.getElementById("tw-k-"+d.j); if(ek) ek.textContent=Math.round(l.k)+" ккал"; const el=document.getElementById("tw-total"); if(el) el.innerHTML=tweakTotalTxt(T); return false },
   drIngG:(d,t)=>{ const D=UI.sheet.draft; D.items[+d.j].g=t.value; const el=document.getElementById("dr-total"); if(el) el.innerHTML=draftTotalTxt(D); return false },
 };
 document.addEventListener("click",ev=>{ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} }
