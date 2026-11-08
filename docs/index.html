@@ -934,7 +934,7 @@ const BODY=[["weight","Вес","кг"],["waist","Талия","см"],["chest","�
 function vBody(){
   const ents=Object.entries(S.body).sort((a,b)=>a[0]<b[0]?-1:1); const m=UI.bodyMetric; const pts=ents.filter(([,e])=>num(e[m])).map(([k,e])=>({l:fmtDs(k),v:num(e[m])}));
   const last=ents.length?ents[ents.length-1][1]:{}; const first=ents.find(([,e])=>num(e[m]))?.[1];
-  const photos=ents.flatMap(([k,e])=>(e.photos||[]).map(p=>({k,id:p})));
+  const photos=ents.flatMap(([k,e])=>(e.photos||[]).map((p,i)=>({k,i,id:p})));
   const tk=todayKey(); const te=S.body[tk]||{};
   return `<section class="card"><h2>Тело</h2>
    <div class="seg" role="group" aria-label="Показатель">${BODY.map(([v,l])=>`<button aria-pressed="${m===v}" data-a="bodyMetric" data-v="${v}">${l}</button>`).join("")}</div>
@@ -943,8 +943,8 @@ function vBody(){
    <div class="eyebrow">Замер за сегодня, ${fmtD(tk)}</div>
    <div class="grid3">${BODY.map(([v,l,u])=>`<label class="field">${l}, ${u}<input id="body-${v}" type="number" inputmode="decimal" step="0.1" value="${esc(te[v]??"")}" placeholder="${esc(last[v]??"")}" data-c="body" data-v="${v}"></label>`).join("")}</div>
    ${canPhoto()?`<div class="eyebrow">Фото «до и после»</div>
-   ${photos.length>=2?`<div class="photos"><figure><img src="${photoSrc(photos[0].id)}" alt="Первое фото"><figcaption class="small muted">${fmtD(photos[0].k)}</figcaption></figure><figure><img src="${photoSrc(photos[photos.length-1].id)}" alt="Последнее фото"><figcaption class="small muted">${fmtD(photos[photos.length-1].k)}</figcaption></figure></div>`:""}
-   ${photos.length?`<div class="thumbs">${photos.map(p=>`<img src="${photoSrc(p.id)}" alt="Фото ${fmtD(p.k)}">`).join("")}</div>`:'<div class="empty">Добавь первое фото — потом будет с чем сравнить</div>'}
+   ${photos.length>=2?`<div class="photos">${[photos[0],photos[photos.length-1]].map((p,j)=>`<figure><button style="padding:0;background:transparent" data-a="photoOpen" data-k="${p.k}" data-i="${p.i}" aria-label="Открыть фото ${fmtD(p.k)}"><img src="${photoSrc(p.id)}" alt="${j?"Последнее":"Первое"} фото"></button><figcaption class="small muted">${j?"После":"До"} · ${fmtD(p.k)}</figcaption></figure>`).join("")}</div>`:""}
+   ${photos.length?`<div class="thumbs">${photos.map(p=>`<button style="padding:0;background:transparent;flex:none" data-a="photoOpen" data-k="${p.k}" data-i="${p.i}" aria-label="Открыть фото ${fmtD(p.k)}"><img src="${photoSrc(p.id)}" alt="Фото ${fmtD(p.k)}"></button>`).join("")}</div><p class="small muted" style="margin:0">Нажми на фото, чтобы открыть его или удалить.</p>`:'<div class="empty">Добавь первое фото — потом будет с чем сравнить</div>'}
    <label class="btn" for="photo-in">Добавить фото за сегодня</label><input id="photo-in" type="file" accept="image/*" hidden data-c="photo">`:""}
   </section>`;
 }
@@ -1222,6 +1222,10 @@ function renderSheet(){
         +(yd.length?`<button data-a="foodRepeat" data-day="${k}">Повторить вчерашний день (${yd.length})</button>`:""):""}
      ${tab==="rec"?RECIPES.map((r,ri)=>{const R=recipeCalc(ri); return `<button class="pick" data-a="recipeAdd" data-v="${ri}"><span><b>${esc(R.label)}</b><br><span class="small muted">Б ${Math.round(R.t.p)} · Ж ${Math.round(R.t.f)} · У ${Math.round(R.t.c)} г</span></span><span class="num">+ ${Math.round(R.t.k)}</span></button>`}).join("")+'<button class="btn-ghost btn-sm" style="align-self:flex-start" data-a="go" data-v="food" data-m="recipes">Порции и варианты — в «Рецептах» ›</button>':""}
      ${tab==="man"?`<div class="grid2"><input id="fd-n" placeholder="Что съел"><input id="fd-k" type="number" inputmode="decimal" placeholder="ккал"></div><div class="grid3"><input id="fd-p" type="number" inputmode="decimal" placeholder="Б, г"><input id="fd-f" type="number" inputmode="decimal" placeholder="Ж, г"><input id="fd-c" type="number" inputmode="decimal" placeholder="У, г"></div><button class="btn-primary" data-a="addFood" data-day="${k}">Записать</button>`:""}` }
+  else if(sh.type==="photo"){ const id=S.body[sh.k]?.photos?.[sh.i]; if(!id){ UI.sheet=null; el.innerHTML=""; return }
+    body=`<h2>Фото · ${fmtD(sh.k)}</h2><img src="${photoSrc(id)}" alt="Фото ${fmtD(sh.k)}" style="width:100%;border-radius:14px">
+     ${sh.confirm?`<p style="margin:0">Удалить это фото? Вернуть его будет нельзя${TG.get().chat?" (если оно не попало в резервную копию в Telegram)":""}.</p><div class="row"><button class="grow" data-a="photoNo">Оставить</button><button class="grow btn-danger" data-a="photoDel">Удалить</button></div>`
+       :`<button class="btn-danger" data-a="photoAsk">Удалить фото</button>`}` }
   else if(sh.type==="rename"){ body=`<h2>${sh.k==="w"?"Название тренировки":"Название программы"}</h2>
      <input id="rename-in" value="${esc(sh.name||"")}" data-i="renameIn" autocomplete="off" maxlength="60">
      <p class="small muted" style="margin:0">${sh.k==="w"?"Меняется только эта тренировка: в истории, в отчёте и в Telegram.":"Новое название будет у следующих тренировок по этой программе. Уже сделанные останутся со старым."}</p>
@@ -1379,6 +1383,10 @@ const ACT={
   chestSheet:()=>{ UI.sheet={type:"chest"} },
   chestOpen:()=>{ const g=gm(); if(g.chests<=0) return; g.chests--; const r=rollChest(); save("meta","settings"); UI.sheet={type:"chest",reward:r}; GMC=null; setTimeout(()=>confetti(),100) },
   accentSet:d=>{ const g=gm(); if(!g.accents.includes(d.v)) return; g.accent=d.v; applyTheme(); save("meta","settings") },
+  photoOpen:d=>{ UI.sheet={type:"photo",k:d.k,i:+d.i} },
+  photoAsk:()=>{ UI.sheet.confirm=true }, photoNo:()=>{ UI.sheet.confirm=false },
+  photoDel:async()=>{ const {k,i}=UI.sheet, e=S.body[k]; if(!e?.photos) return; const [id]=e.photos.splice(i,1); if(!e.photos.length) delete e.photos;
+    if(Store.assets&&id&&!id.startsWith("data:")){ try{ await Store.assets.delete(id) }catch(x){} } save("body",k); UI.sheet=null; toast("Фото удалено"); render(); return false },
   restAdd:()=>{rest.end+=30000; rest.total+=30; rest.beeped=false},
   restStop:()=>{rest.end=0},
   period:d=>{UI.period=d.v}, progEx:d=>{UI.progEx=d.v}, bodyMetric:d=>{UI.bodyMetric=d.v},
