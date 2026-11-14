@@ -1007,7 +1007,8 @@ function nutritionParse(text){
     else if(unit.startsWith("банан")){if(match==="banana")grams=amount*120;else{unknown.push(part);continue}}
     else if(unit.startsWith("шт")||unit.startsWith("штук")){if(match==="egg") grams=amount*50; else if(match==="banana") grams=amount*120; else {unknown.push(part+" (нужно указать граммы)");continue}}
     const m=grams/100;
-    found.push({n:fd.n+" — "+(unit.startsWith("шт")?amount+" шт.":amount+(unit==="мл"?" мл":" г")),k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m});
+    const qtyLabel=unit.startsWith("шт")||unit.startsWith("штук")||unit.startsWith("яйц")||unit.startsWith("банан")?amount+" шт.":amount+(unit==="мл"?" мл":" г");
+    found.push({n:fd.n+" — "+qtyLabel,k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m});
   }
   if(unknown.length)return {error:"Не смог однозначно разобрать: "+unknown.join("; ")+". Напиши эти продукты отдельными строками и укажи количество в граммах или миллилитрах.",unknown};
   if(!found.length)return {error:"Не нашёл продукты. Пока понимаю названия из встроенного справочника Kalashnikov."};
