@@ -997,12 +997,15 @@ function nutritionParse(text){
     if(!match){unknown.push(part);continue}
     const fd=foodById(match);
     const qty=part.match(/(\d+(?:[.,]\d+)?)\s*(г|гр|грамм(?:а|ов)?|мл|шт\.?|штук(?:и)?)/i)
-      ||part.match(/(\d+(?:[.,]\d+)?)\s*(?=$)/);
+      ||part.match(/(\d+(?:[.,]\d+)?)\s*(?=$)/)
+      ||part.match(/^(\d+(?:[.,]\d+)?)\s*(яйц(?:о|а|а)?|банан(?:а|ов)?)/i);
     if(!qty){unknown.push(part+" (не указано количество)");continue}
     let amount=Number(qty[1].replace(",",".")); if(!Number.isFinite(amount)||amount<=0){unknown.push(part);continue}
     let grams=amount;
     const unit=(qty[2]||"г").toLowerCase();
-    if(unit.startsWith("шт")||unit.startsWith("штук")){if(match==="egg") grams=amount*50; else if(match==="banana") grams=amount*120; else {unknown.push(part+" (нужно указать граммы)");continue}}
+    if(unit.startsWith("яйц")){if(match==="egg")grams=amount*50;else{unknown.push(part);continue}}
+    else if(unit.startsWith("банан")){if(match==="banana")grams=amount*120;else{unknown.push(part);continue}}
+    else if(unit.startsWith("шт")||unit.startsWith("штук")){if(match==="egg") grams=amount*50; else if(match==="banana") grams=amount*120; else {unknown.push(part+" (нужно указать граммы)");continue}}
     const m=grams/100;
     found.push({n:fd.n+" — "+(unit.startsWith("шт")?amount+" шт.":amount+(unit==="мл"?" мл":" г")),k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m});
   }
@@ -1015,6 +1018,7 @@ function nutritionChatAdd(role,html){
   UI.nutritionChat=UI.nutritionChat||[];
   UI.nutritionChat.push({role,html:String(html),at:Date.now()});
   if(UI.nutritionChat.length>60)UI.nutritionChat=UI.nutritionChat.slice(-60);
+  try{localStorage.setItem("zh_nutrition_chat",JSON.stringify(UI.nutritionChat))}catch(e){}
 }
 function nutritionChatSend(){
   const input=document.getElementById("nutrition-chat-input"), message=input?.value.trim();
@@ -1030,6 +1034,7 @@ function nutritionChatSend(){
   input.value="";
 }
 function vNutritionChat(){
+  if(!UI.nutritionChat){try{UI.nutritionChat=JSON.parse(localStorage.getItem("zh_nutrition_chat")||"[]")}catch(e){UI.nutritionChat=[]}}
   const msgs=UI.nutritionChat||[];
   return `<section class="card"><div class="row between"><div><div class="eyebrow">Kalashnikov Nutrition</div><h2>Текстовый помощник</h2></div><span class="small muted">Без облака</span></div>
   <p class="small muted">Пиши продукты с количеством. Например: «Обед: гречка 80 г, курица 150 г, огурцы 100 г». Используется встроенный справочник приложения.</p>
