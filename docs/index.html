@@ -171,6 +171,7 @@ nav.tabs button[aria-current=page]{color:var(--hl);font-weight:600}
 .restbar button{background:rgba(127,127,127,.25);color:inherit}
 .restbar .bar{flex:1;height:6px;border-radius:3px;background:rgba(127,127,127,.3);overflow:hidden}
 .restbar .bar i{display:block;height:100%;background:var(--bg)}
+.nutrition-chat-log{display:flex;flex-direction:column;gap:8px;max-height:42vh;overflow:auto;padding:4px 0}.nutrition-msg{max-width:92%;padding:10px 12px;border-radius:12px;background:var(--surface2);font-size:14px;line-height:1.5;overflow-wrap:anywhere}.nutrition-msg.user{align-self:flex-end;background:var(--accent-soft)}.nutrition-msg.assistant{align-self:flex-start;border:1px solid var(--line)}.nutrition-msg hr{border:0;border-top:1px solid var(--line);margin:8px 0}.nutrition-msg .good{color:var(--green,var(--hl));font-weight:600}
 /* sheet */
 .sheet-bg{position:fixed;inset:0;z-index:30;background:rgba(5,8,12,.5);display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--bg);width:100%;max-width:640px;max-height:86vh;overflow:auto;border-radius:18px 18px 0 0;
@@ -972,9 +973,107 @@ function vMore(){
    ${it("ref","Справочник","Упражнения с подсказками по технике и база знаний")}
    ${it("settings","Настройки","Привычки и повторы, оформление, Telegram, данные")}</div>`;
 }
+
+/* ---------- текстовый помощник питания (без внешнего AI/API) ---------- */
+const NUTRITION_ALIASES={
+  oats:["овсянка","овсяные хлопья","овсянки"],
+  milk:["молоко","молока"],
+  milk32:["молоко 3,2%","молоко 3.2%"],
+  egg:["яйца","яйцо","яиц"],
+  chicken:["курица","куриную грудку","куриная грудка","куриного филе","куриное филе","курицы"],
+  turkey:["индейка","индейку","грудка индейки"],
+  cream_cheese:["творожный сыр"],
+  gouda:["сыр","гауда","российский сыр"],
+  tomato:["помидор","помидоры","томаты"],
+  cucumber:["огурец","огурцы"],
+  pickle:["солёный огурец","соленый огурец","солёные огурцы"],
+  teriyaki:["терияки","соус терияки"],
+  whey:["протеин","сывороточный протеин"],
+  banana:["банан","бананы"],
+  nectarine:["нектарин","нектарины"],
+  nuts:["орехи","ореховая смесь"],
+  rice:["рис","рис сухой"],
+  buckwheat:["гречка","гречневая крупа"],
+  bulgur:["булгур"],
+  tvorog:["творог","творога"],
+  greek:["греческий йогурт","йогурт греческий"],
+  espresso:["эспрессо","кофе эспрессо"]
+};
+const nutritionNorm=s=>String(s||"").toLowerCase().replace(/ё/g,"е").replace(/[^а-яa-z0-9,.% ]/g," ").replace(/\s+/g," ").trim();
+function nutritionParse(text){
+  const raw=String(text||"").trim();
+  if(!raw) return {error:"Напиши продукты и их количество."};
+  const recipeIndex=allRecipes().findIndex(r=>nutritionNorm(raw.replace(/^(завтрак|обед|ужин|перекус)\s*[:,-]?\s*/i,""))===nutritionNorm(r.n));
+  if(recipeIndex>=0){const R=recipeCalc(recipeIndex);return {items:[{n:R.label,k:R.t.k,p:R.t.p,f:R.t.f,c:R.t.c}],summary:R.t,source:"recipe"}}
+  const parts=raw.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+  const found=[], unknown=[];
+  for(let part of parts){
+    part=part.replace(/^(завтрак|обед|ужин|перекус)\s*[:,-]?\s*/i,"").trim();
+    if(!part) continue;
+    const n=nutritionNorm(part);
+    let match=null, alias="";
+    const ids=[...Object.keys(NUTRITION_ALIASES),...Object.keys(FOOD).filter(k=>!NUTRITION_ALIASES[k])];
+    for(const id of ids){
+      const fd=foodById(id); const names=[...(NUTRITION_ALIASES[id]||[]),fd.n].map(nutritionNorm).sort((a,b)=>b.length-a.length);
+      const a=names.find(x=>x&&n.includes(x));
+      if(a&&(!match||a.length>alias.length)){match=id;alias=a}
+    }
+    if(!match){
+      const custom=Object.entries(settings().myFoods||{}).find(([id,fd])=>nutritionNorm(fd.n)===n);
+      if(custom) match=custom[0];
+    }
+    if(!match){unknown.push(part);continue}
+    const fd=foodById(match);
+    const qty=part.match(/(\d+(?:[.,]\d+)?)\s*(г|гр|грамм(?:а|ов)?|мл|шт\.?|штук(?:и)?)/i)
+      ||part.match(/(\d+(?:[.,]\d+)?)\s*(?=$)/)
+      ||part.match(/^(\d+(?:[.,]\d+)?)\s*(яйц(?:о|а|а)?|банан(?:а|ов)?)/i);
+    if(!qty){unknown.push(part+" (не указано количество)");continue}
+    let amount=Number(qty[1].replace(",",".")); if(!Number.isFinite(amount)||amount<=0){unknown.push(part);continue}
+    let grams=amount;
+    const unit=(qty[2]||"г").toLowerCase();
+    if(unit.startsWith("яйц")){if(match==="egg")grams=amount*50;else{unknown.push(part);continue}}
+    else if(unit.startsWith("банан")){if(match==="banana")grams=amount*120;else{unknown.push(part);continue}}
+    else if(unit.startsWith("шт")||unit.startsWith("штук")){if(match==="egg") grams=amount*50; else if(match==="banana") grams=amount*120; else {unknown.push(part+" (нужно указать граммы)");continue}}
+    const m=grams/100;
+    found.push({n:fd.n+" — "+(unit.startsWith("шт")?amount+" шт.":amount+(unit==="мл"?" мл":" г")),k:fd.k*m,p:fd.p*m,f:fd.f*m,c:fd.c*m});
+  }
+  if(unknown.length)return {error:"Не смог однозначно разобрать: "+unknown.join("; ")+". Напиши эти продукты отдельными строками и укажи количество в граммах или миллилитрах.",unknown};
+  if(!found.length)return {error:"Не нашёл продукты. Пока понимаю названия из встроенного справочника Kalashnikov."};
+  const total=found.reduce((a,x)=>({k:a.k+x.k,p:a.p+x.p,f:a.f+x.f,c:a.c+x.c}),{k:0,p:0,f:0,c:0});
+  return {items:found,summary:total,source:"foods"};
+}
+function nutritionChatAdd(role,html){
+  UI.nutritionChat=UI.nutritionChat||[];
+  UI.nutritionChat.push({role,html:String(html),at:Date.now()});
+  if(UI.nutritionChat.length>60)UI.nutritionChat=UI.nutritionChat.slice(-60);
+  try{localStorage.setItem("zh_nutrition_chat",JSON.stringify(UI.nutritionChat))}catch(e){}
+}
+function nutritionChatSend(){
+  const input=document.getElementById("nutrition-chat-input"), message=input?.value.trim();
+  if(!message)return;
+  nutritionChatAdd("user",esc(message));
+  const parsed=nutritionParse(message);
+  if(parsed.error){nutritionChatAdd("assistant",esc(parsed.error));input.value="";return}
+  const d=day(todayKey());d.food=d.food||[];
+  const entry={id:uid(),n:parsed.items.map(x=>x.n).join(" + "),k:Math.round(parsed.summary.k),p:r1(parsed.summary.p),f:r1(parsed.summary.f),c:r1(parsed.summary.c)};
+  d.food.push(entry);saveDay(todayKey());
+  const details=parsed.items.map(x=>esc(x.n)+" — "+Math.round(x.k)+" ккал").join("<br>");
+  nutritionChatAdd("assistant",details+"<hr><b>"+entry.k+" ккал</b> · Б "+Math.round(entry.p)+" г · Ж "+Math.round(entry.f)+" г · У "+Math.round(entry.c)+" г<br><span class='good'>✓ Записано в дневник за сегодня</span>");
+  input.value="";
+}
+function vNutritionChat(){
+  if(!UI.nutritionChat){try{UI.nutritionChat=JSON.parse(localStorage.getItem("zh_nutrition_chat")||"[]")}catch(e){UI.nutritionChat=[]}}
+  const msgs=UI.nutritionChat||[];
+  return `<section class="card"><div class="row between"><div><div class="eyebrow">Kalashnikov Nutrition</div><h2>Текстовый помощник</h2></div><span class="small muted">Без облака</span></div>
+  <p class="small muted">Пиши продукты с количеством. Например: «Обед: гречка 80 г, курица 150 г, огурцы 100 г». Используется встроенный справочник приложения.</p>
+  <div class="nutrition-chat-log">${msgs.length?msgs.map(m=>`<div class="nutrition-msg ${m.role}">${m.html}</div>`).join(""):'<div class="empty">Пока нет сообщений. Напиши, что ты съел.</div>'}</div>
+  <label class="field">Сообщение<textarea id="nutrition-chat-input" rows="3" placeholder="Завтрак: овсянка 55 г, молоко 80 мл, яйца 2 шт."></textarea></label>
+  <button class="btn-primary" data-a="nutritionChatSend">Рассчитать и записать</button>
+  </section>`;
+}
 function vFoodTab(){ const t=UI.foodTab||"diary";
-  return `<header><div class="eyebrow">Питание</div><h1>${{diary:"Дневник",norm:"Норма КБЖУ",recipes:"Рецепты"}[t]}</h1></header>`+segBar([["diary","Дневник"],["norm","Норма"],["recipes","Рецепты"]],t,"foodTab","Раздел питания")
-    +(t==="norm"?stripHead(vFood()):t==="recipes"?stripHead(vRecipes()):vDiary()) }
+  return `<header><div class="eyebrow">Питание</div><h1>${{diary:"Дневник",norm:"Норма КБЖУ",recipes:"Рецепты",chat:"Чат"}[t]}</h1></header>`+segBar([["diary","Дневник"],["norm","Норма"],["recipes","Рецепты"],["chat","Чат"]],t,"foodTab","Раздел питания")
+    +(t==="norm"?stripHead(vFood()):t==="recipes"?stripHead(vRecipes()):t==="chat"?vNutritionChat():vDiary()) }
 function vDiary(){ const k=UI.day, d=peekDay(k)||{food:[]}, food=d.food||[], isToday=k===todayKey(), yd=peekDay(ymd(addDays(parseYmd(k),-1)))?.food||[];
   return `<div class="row between"><b>${isToday?"Сегодня":WD[wdIdx(k)]}, ${fmtD(k)}</b><div class="row"><button class="icon-btn" data-a="dayShift" data-v="-1" aria-label="Предыдущий день">‹</button>${isToday?"":`<button class="btn-sm" data-a="dayToday">Сегодня</button>`}<button class="icon-btn" data-a="dayShift" data-v="1" aria-label="Следующий день">›</button></div></div>
   <section class="card">${foodSummary(k,d)}</section>
@@ -1313,7 +1412,7 @@ function renderRest(){
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
 // Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794169427";
+const APP_VER="1794652017";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
@@ -1353,6 +1452,7 @@ const ACT={
   todayMode:d=>{UI.todayMode=d.v; scrollTo(0,0)}, foodTab:d=>{UI.foodTab=d.v}, progTab:d=>{UI.progTab=d.v}, refTab:d=>{UI.refTab=d.v}, histAll:()=>{UI.histAll=true},
   gameToggle:(d,t,ev)=>{ ev.preventDefault(); UI.gameOpen=!UI.gameOpen },
   foodAdd:()=>{ UI.sheet={type:"addFood",tab:UI.favCache?.length||favFoods(UI.day).length?"fav":"rec"} }, addTab:d=>{ UI.sheet.tab=d.v },
+  nutritionChatSend:()=>{nutritionChatSend()},
   more:d=>{UI.more=d.v||null; scrollTo(0,0)},
   dayShift:d=>{UI.day=ymd(addDays(parseYmd(UI.day),+d.v))}, dayToday:()=>{UI.day=todayKey()},
   openDay:d=>{UI.day=d.day; UI.tab="today"; UI.todayMode="day"; scrollTo(0,0)},
@@ -1561,7 +1661,6 @@ async function boot(){
 }
 boot();
 </script>
-
 <script>if("serviceWorker" in navigator && location.protocol==="https:") navigator.serviceWorker.register("sw.js");</script>
 </body>
 </html>
