@@ -1299,7 +1299,20 @@ setInterval(()=>{
   if(rest.end){ const left=(rest.end-Date.now())/1000; if(left<=0&&!rest.beeped){ rest.beeped=true; beep(); const msg=rest.label?"Следующий подход: "+rest.label:"Пора на следующий подход"; tgSend("Отдых окончен. "+msg) } if(left<=-3){ rest.end=0 } renderRest() }
   const el=document.getElementById("wk-el"); const id=UI.openWorkout||activeWorkout(); const w=id&&S.workouts[id]; if(el&&w&&!w.finishedAt) el.textContent=mmss((Date.now()-w.startedAt)/1000);
 },1000);
-let wakeLock=null; async function keepAwake(){ try{ wakeLock=await navigator.wakeLock?.request("screen") }catch(e){} }
+let wakeLock=null, wakeLockRequest=null;
+async function keepAwake(){
+  if(document.visibilityState!=="visible"||!activeWorkout()||!("wakeLock" in navigator)) return;
+  if(wakeLock&&!wakeLock.released) return;
+  if(wakeLockRequest) return;
+  try{
+    wakeLockRequest=navigator.wakeLock.request("screen");
+    const lock=await wakeLockRequest;
+    wakeLock=lock;
+    lock.addEventListener("release",()=>{ if(wakeLock===lock) wakeLock=null });
+  }catch(e){ wakeLock=null }
+  finally{ wakeLockRequest=null }
+}
+function releaseAwake(){ const lock=wakeLock; wakeLock=null; try{ lock?.release() }catch(e){} }
 
 /* ---------- действия ---------- */
 function toast(t){ const d=document.createElement("div"); d.className="toast"; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),3200) }
@@ -1360,13 +1373,13 @@ const ACT={
     if(d.deload){ w.deload=true; w.title=progName(p)+" (разгрузка)"; for(const e of w.ex){ delete e.hint; e.sets=e.sets.slice(0,Math.max(1,Math.round(e.sets.length*0.6))) } }
     if(d.light){ w.light=true; for(const e of w.ex){ delete e.hint; if(e.sets.length>2) e.sets.pop(); e.sets.forEach(x=>{ if(num(x.w)) x.w=String(Math.round(num(x.w)*0.9*2)/2) }) } }
     save("workouts",UI.openWorkout)},
-  startEmpty:()=>{ if(activeWorkout()){UI.openWorkout=activeWorkout();UI.tab="train";return} newWorkout("Своя тренировка",null,[]); UI.sheet={type:"pick"} },
-  openW:d=>{UI.openWorkout=d.id; UI.tab="train"; scrollTo(0,0)},
+  startEmpty:()=>{ if(activeWorkout()){UI.openWorkout=activeWorkout();UI.tab="train";keepAwake();return} newWorkout("Своя тренировка",null,[]); UI.sheet={type:"pick"} },
+  openW:d=>{UI.openWorkout=d.id; UI.tab="train"; keepAwake(); scrollTo(0,0)},
   closeW:()=>{UI.openWorkout=null; scrollTo(0,0)},
   finishW:d=>{const w=S.workouts[d.id]; w.finishedAt=Date.now(); save("workouts",d.id);
     let wch=false; for(const e of w.ex){ const t=topOf(e.exId,doneSets(e)); if(!t) continue;
       const it=working().items[e.exId]||(working().items[e.exId]={h:[]}); if((it.u||"кг")!==t.u){ it.h=[]; it.u=t.u; wch=true }
-      if(it.h[it.h.length-1]!==t.v){ it.h.push(t.v); wch=true } } if(wch) save("meta","working"); tgReport(d.id); rest.end=0; try{wakeLock?.release()}catch(e){} UI.sheet={type:"done",id:d.id}; setTimeout(()=>confetti(),150); scrollTo(0,0)},
+      if(it.h[it.h.length-1]!==t.v){ it.h.push(t.v); wch=true } } if(wch) save("meta","working"); tgReport(d.id); rest.end=0; releaseAwake(); UI.sheet={type:"done",id:d.id}; setTimeout(()=>confetti(),150); scrollTo(0,0)},
   wFlag:d=>{const w=S.workouts[d.id]; w[d.f]=!w[d.f]; save("workouts",d.id)},
   cardio:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.type=d.v; save("workouts",d.id)},
   cardioDone:d=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.done=!w.cardio.done; save("workouts",d.id)},
@@ -1501,6 +1514,7 @@ document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); 
 document.addEventListener("input",ev=>{ const t=ev.target.closest("[data-i]"); if(!t) return; INP[t.dataset.i]?.(t.dataset,t) });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&UI.sheet){UI.sheet=null;render();return} if(ev.key!=="Enter") return; const t=ev.target.closest("[data-enter]"); if(!t) return; ev.preventDefault(); ACT[t.dataset.enter](t.dataset,t,ev); render() });
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ if(activeWorkout()) keepAwake(); checkUpdate(false); GMC=null; applyFreezes(); render(); tgBackup(false).then(()=>tgWeekly(false)) } });
+window.addEventListener("pageshow",()=>{ if(activeWorkout()) keepAwake() });
 function applyTheme(){ const th=S.meta.settings?.theme||"dark"; document.documentElement.setAttribute("data-theme",th);
   const light=th==="light"||(th==="auto"&&matchMedia("(prefers-color-scheme: light)").matches); document.querySelector('meta[name="theme-color"]')?.setAttribute("content",light?"#EEEAE1":"#050505");
   const ac=ACCENTS[S.meta.settings?.gm?.accent], st=document.documentElement.style;
