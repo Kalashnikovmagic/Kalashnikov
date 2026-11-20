@@ -1312,12 +1312,46 @@ function renderRest(){
   el.innerHTML=`<div class="restbar"><div class="in"><span class="t">${left>0?mmss(left):"Пора!"}</span><div class="bar"><i style="width:${Math.max(0,left/rest.total*100)}%"></i></div><button class="btn-sm" data-a="restAdd">+30</button><button class="btn-sm" data-a="restStop">Стоп</button></div></div>`;
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
-// Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
-const APP_VER="1794169427";
+// Проверка обновлений: build.py собирает docs/index.html и docs/version.txt для GitHub Pages
+const APP_VER="1795197188";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
-async function hardUpdate(){ try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); const regs=await navigator.serviceWorker?.getRegistrations(); await Promise.all((regs||[]).map(r=>r.update().catch(()=>{}))) }catch(e){} location.reload() }
+async function hardUpdate(){
+  const btn=document.querySelector('[data-a="hardUpdate"]');
+  if(btn) btn.disabled=true;
+  toast("Проверяю и загружаю обновление…");
+  try{
+    const regs=await navigator.serviceWorker?.getRegistrations()||[];
+    const current=regs.filter(r=>location.href.startsWith(r.scope));
+    await Promise.all(current.map(r=>r.update().catch(()=>{})));
+    const waiting=current.map(r=>r.waiting).find(Boolean);
+    if(waiting) waiting.postMessage({type:"SKIP_WAITING"});
+    const installing=current.map(r=>r.installing).find(Boolean);
+    if(installing){
+      await Promise.race([
+        new Promise(resolve=>{
+          if(installing.state==="installed"||installing.state==="activated"){resolve();return}
+          installing.addEventListener("statechange",()=>{
+            if(installing.state==="installed"||installing.state==="activated"||installing.state==="redundant") resolve();
+          });
+        }),
+        new Promise(resolve=>setTimeout(resolve,10000))
+      ]);
+      const newlyWaiting=current.map(r=>r.waiting).find(Boolean);
+      if(newlyWaiting) newlyWaiting.postMessage({type:"SKIP_WAITING"});
+    }
+    if(current.length){
+      await Promise.race([
+        new Promise(resolve=>navigator.serviceWorker.addEventListener("controllerchange",resolve,{once:true})),
+        new Promise(resolve=>setTimeout(resolve,4000))
+      ]);
+    }
+  }catch(e){}
+  const url=new URL(location.href);
+  url.searchParams.set("refresh",String(Date.now()));
+  location.replace(url.href);
+}
 const TG={get(){ try{ return JSON.parse(localStorage.getItem("zh_tg")||"{}") }catch(e){ return {} } }, set(v){ try{ localStorage.setItem("zh_tg",JSON.stringify(v)) }catch(e){} }};
 // POST с form-urlencoded — «простой» запрос без предварительной проверки CORS, Telegram его принимает
 async function tgCall(token,method,params){ const r=await fetch("https://api.telegram.org/bot"+token+"/"+method,{method:"POST",body:new URLSearchParams(params||{})}); return r.json() }
@@ -1513,7 +1547,7 @@ const ACT={
     try{ await Store.downloads.save({filename:fn,data}) }catch(e){ if(e?.code!=="declined"&&e?.code!=="cancelled") toast("Не удалось сохранить файл") } return false },
 };
 const CHG={
-  sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day)},
+  sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day); return false},
   drIngF:(d,t)=>{ UI.sheet.draft.items[+d.j].f=t.value; renderSheet(); return false },
   cardioMin:(d,t)=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.min=num(t.value); save("workouts",d.id)},
   body:(d,t)=>{const k=todayKey(); const e=S.body[k]||(S.body[k]={}); if(t.value==="") delete e[d.v]; else e[d.v]=num(t.value); save("body",k)},
@@ -1538,7 +1572,7 @@ const INP={
 };
 document.addEventListener("click",ev=>{ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} }
   const t=ev.target.closest("[data-a]"); if(!t||t.disabled) return; const f=ACT[t.dataset.a]; if(!f) return; const r=f(t.dataset,t,ev); if(r!==false&&!(r instanceof Promise)) render() });
-document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); if(!t) return; const r=CHG[t.dataset.c]?.(t.dataset,t); if(!(r instanceof Promise)) render() });
+document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); if(!t) return; const r=CHG[t.dataset.c]?.(t.dataset,t); if(r!==false&&!(r instanceof Promise)) render() });
 document.addEventListener("input",ev=>{ const t=ev.target.closest("[data-i]"); if(!t) return; INP[t.dataset.i]?.(t.dataset,t) });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&UI.sheet){UI.sheet=null;render();return} if(ev.key!=="Enter") return; const t=ev.target.closest("[data-enter]"); if(!t) return; ev.preventDefault(); ACT[t.dataset.enter](t.dataset,t,ev); render() });
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ if(activeWorkout()) keepAwake(); checkUpdate(false); GMC=null; applyFreezes(); render(); tgBackup(false).then(()=>tgWeekly(false)) } });
