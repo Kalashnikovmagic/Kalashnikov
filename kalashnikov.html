@@ -1289,7 +1289,41 @@ const APP_VER="__BUILD__";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
   catch(e){ if(manual) toast("Нет связи. Проверь интернет и попробуй снова.") } return false }
-async function hardUpdate(){ try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); const regs=await navigator.serviceWorker?.getRegistrations(); await Promise.all((regs||[]).map(r=>r.update().catch(()=>{}))) }catch(e){} location.reload() }
+async function hardUpdate(){
+  const btn=document.querySelector('[data-a="hardUpdate"]');
+  if(btn) btn.disabled=true;
+  toast("Проверяю и загружаю обновление…");
+  try{
+    const regs=await navigator.serviceWorker?.getRegistrations()||[];
+    const current=regs.filter(r=>location.href.startsWith(r.scope));
+    await Promise.all(current.map(r=>r.update().catch(()=>{})));
+    const waiting=current.map(r=>r.waiting).find(Boolean);
+    if(waiting) waiting.postMessage({type:"SKIP_WAITING"});
+    const installing=current.map(r=>r.installing).find(Boolean);
+    if(installing){
+      await Promise.race([
+        new Promise(resolve=>{
+          if(installing.state==="installed"||installing.state==="activated"){resolve();return}
+          installing.addEventListener("statechange",()=>{
+            if(installing.state==="installed"||installing.state==="activated"||installing.state==="redundant") resolve();
+          });
+        }),
+        new Promise(resolve=>setTimeout(resolve,10000))
+      ]);
+      const newlyWaiting=current.map(r=>r.waiting).find(Boolean);
+      if(newlyWaiting) newlyWaiting.postMessage({type:"SKIP_WAITING"});
+    }
+    if(current.length){
+      await Promise.race([
+        new Promise(resolve=>navigator.serviceWorker.addEventListener("controllerchange",resolve,{once:true})),
+        new Promise(resolve=>setTimeout(resolve,4000))
+      ]);
+    }
+  }catch(e){}
+  const url=new URL(location.href);
+  url.searchParams.set("refresh",String(Date.now()));
+  location.replace(url.href);
+}
 const TG={get(){ try{ return JSON.parse(localStorage.getItem("zh_tg")||"{}") }catch(e){ return {} } }, set(v){ try{ localStorage.setItem("zh_tg",JSON.stringify(v)) }catch(e){} }};
 // POST с form-urlencoded — «простой» запрос без предварительной проверки CORS, Telegram его принимает
 async function tgCall(token,method,params){ const r=await fetch("https://api.telegram.org/bot"+token+"/"+method,{method:"POST",body:new URLSearchParams(params||{})}); return r.json() }
