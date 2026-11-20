@@ -1485,7 +1485,7 @@ const ACT={
     try{ await Store.downloads.save({filename:fn,data}) }catch(e){ if(e?.code!=="declined"&&e?.code!=="cancelled") toast("Не удалось сохранить файл") } return false },
 };
 const CHG={
-  sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day)},
+  sleep:(d,t)=>{day(d.day).sleep=t.value; saveDay(d.day); return false},
   drIngF:(d,t)=>{ UI.sheet.draft.items[+d.j].f=t.value; renderSheet(); return false },
   cardioMin:(d,t)=>{const w=S.workouts[d.id]; w.cardio=w.cardio||{}; w.cardio.min=num(t.value); save("workouts",d.id)},
   body:(d,t)=>{const k=todayKey(); const e=S.body[k]||(S.body[k]={}); if(t.value==="") delete e[d.v]; else e[d.v]=num(t.value); save("body",k)},
@@ -1510,7 +1510,7 @@ const INP={
 };
 document.addEventListener("click",ev=>{ if(!audioCtx){ try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){} }
   const t=ev.target.closest("[data-a]"); if(!t||t.disabled) return; const f=ACT[t.dataset.a]; if(!f) return; const r=f(t.dataset,t,ev); if(r!==false&&!(r instanceof Promise)) render() });
-document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); if(!t) return; const r=CHG[t.dataset.c]?.(t.dataset,t); if(!(r instanceof Promise)) render() });
+document.addEventListener("change",ev=>{ const t=ev.target.closest("[data-c]"); if(!t) return; const r=CHG[t.dataset.c]?.(t.dataset,t); if(r!==false&&!(r instanceof Promise)) render() });
 document.addEventListener("input",ev=>{ const t=ev.target.closest("[data-i]"); if(!t) return; INP[t.dataset.i]?.(t.dataset,t) });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape"&&UI.sheet){UI.sheet=null;render();return} if(ev.key!=="Enter") return; const t=ev.target.closest("[data-enter]"); if(!t) return; ev.preventDefault(); ACT[t.dataset.enter](t.dataset,t,ev); render() });
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ if(activeWorkout()) keepAwake(); checkUpdate(false); GMC=null; applyFreezes(); render(); tgBackup(false).then(()=>tgWeekly(false)) } });
