@@ -1284,7 +1284,7 @@ function renderRest(){
   el.innerHTML=`<div class="restbar"><div class="in"><span class="t">${left>0?mmss(left):"Пора!"}</span><div class="bar"><i style="width:${Math.max(0,left/rest.total*100)}%"></i></div><button class="btn-sm" data-a="restAdd">+30</button><button class="btn-sm" data-a="restStop">Стоп</button></div></div>`;
 }
 function startRest(sec,label){ rest.total=sec; rest.end=Date.now()+sec*1000; rest.beeped=false; rest.label=label||""; renderRest() }
-// Проверка обновлений: номер сборки подставляет build.py, на сайте рядом лежит version.txt
+// Проверка обновлений: build.py собирает docs/index.html и docs/version.txt для GitHub Pages
 const APP_VER="__BUILD__";
 async function checkUpdate(manual){ if(APP_VER.startsWith("__")){ if(manual) toast("Проверка обновлений работает в версии с сайта"); return false }
   try{ const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim(); if(/^\d+$/.test(v)&&v!==APP_VER&&+v>+APP_VER){ UI.newVer=true; render(); return true } if(manual) toast("У тебя последняя версия") }
